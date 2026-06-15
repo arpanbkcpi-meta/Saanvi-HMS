@@ -2,13 +2,21 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from '../utils/axios';
+import AuthCard from '../components/AuthCard';
+import InputField from '../components/InputField';
+import Button from '../components/Button';
 
 const Register = () => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
-    role: 'receptionist'
+    role: 'patient',
+    specialization: '',
+    experience: '',
+    age: '',
+    gender: 'male',
+    phone: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -26,7 +34,9 @@ const Register = () => {
     try {
       const { data } = await axios.post('/auth/register', formData);
       login(data);
-      navigate('/dashboard');
+      if (data.role === 'doctor') navigate('/doctor-dashboard');
+      else if (data.role === 'patient') navigate('/patient-dashboard');
+      else navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed');
     } finally {
@@ -35,78 +45,120 @@ const Register = () => {
   };
 
   return (
-    <div className="min-vh-100 d-flex align-items-center justify-content-center bg-light">
-      <div className="card shadow p-4" style={{ width: '400px' }}>
-        <div className="text-center mb-4">
-          <h2 className="fw-bold text-primary">Saanvi HMS</h2>
-          <p className="text-muted">Hospital Management System</p>
-        </div>
-        <h5 className="mb-3">Register</h5>
-        {error && <div className="alert alert-danger">{error}</div>}
-        <form onSubmit={handleSubmit}>
-          <div className="mb-3">
-            <label className="form-label">Full Name</label>
-            <input
-              type="text"
-              name="name"
-              className="form-control"
-              placeholder="Enter your full name"
-              value={formData.name}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div className="mb-3">
-            <label className="form-label">Email</label>
-            <input
-              type="email"
-              name="email"
-              className="form-control"
-              placeholder="Enter your email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div className="mb-3">
-            <label className="form-label">Password</label>
-            <input
-              type="password"
-              name="password"
-              className="form-control"
-              placeholder="Minimum 6 characters"
-              value={formData.password}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div className="mb-3">
-            <label className="form-label">Role</label>
-            <select
-              name="role"
-              className="form-select"
-              value={formData.role}
-              onChange={handleChange}
-            >
-              <option value="receptionist">Receptionist</option>
-              <option value="doctor">Doctor</option>
-              <option value="admin">Admin</option>
-            </select>
-          </div>
-          <button
-            type="submit"
-            className="btn btn-primary w-100"
-            disabled={loading}
+    <AuthCard title="Register">
+      {error && <div className="alert alert-danger">{error}</div>}
+      <form onSubmit={handleSubmit}>
+        <InputField
+          label="Full Name"
+          type="text"
+          name="name"
+          placeholder="Enter your full name"
+          value={formData.name}
+          onChange={handleChange}
+          required
+        />
+        <InputField
+          label="Email"
+          type="email"
+          name="email"
+          placeholder="Enter your email"
+          value={formData.email}
+          onChange={handleChange}
+          required
+        />
+        <InputField
+          label="Password"
+          type="password"
+          name="password"
+          placeholder="Minimum 6 characters"
+          value={formData.password}
+          onChange={handleChange}
+          required
+        />
+        <InputField
+          label="Phone"
+          type="text"
+          name="phone"
+          placeholder="Enter your phone number"
+          value={formData.phone}
+          onChange={handleChange}
+        />
+
+        {/* Role Selection */}
+        <div className="mb-3">
+          <label className="form-label fw-semibold">Role</label>
+          <select
+            name="role"
+            className="form-select"
+            value={formData.role}
+            onChange={handleChange}
           >
-            {loading ? 'Registering...' : 'Register'}
-          </button>
-        </form>
-        <p className="text-center mt-3 mb-0">
-          Already have an account?{' '}
-          <Link to="/login">Login here</Link>
-        </p>
-      </div>
-    </div>
+            <option value="patient">Patient</option>
+            <option value="doctor">Doctor</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+
+        {/* Doctor specific fields */}
+        {formData.role === 'doctor' && (
+          <>
+            <InputField
+              label="Specialization"
+              type="text"
+              name="specialization"
+              placeholder="e.g. Cardiologist, Dentist"
+              value={formData.specialization}
+              onChange={handleChange}
+            />
+            <InputField
+              label="Years of Experience"
+              type="number"
+              name="experience"
+              placeholder="Enter years of experience"
+              value={formData.experience}
+              onChange={handleChange}
+            />
+          </>
+        )}
+
+        {/* Patient specific fields */}
+        {formData.role === 'patient' && (
+          <>
+            <InputField
+              label="Age"
+              type="number"
+              name="age"
+              placeholder="Enter your age"
+              value={formData.age}
+              onChange={handleChange}
+            />
+            <div className="mb-3">
+              <label className="form-label fw-semibold">Gender</label>
+              <select
+                name="gender"
+                className="form-select"
+                value={formData.gender}
+                onChange={handleChange}
+              >
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+          </>
+        )}
+
+        <Button
+          text="Register"
+          type="submit"
+          loading={loading}
+        />
+      </form>
+      <p className="text-center mt-3 mb-0">
+        Already have an account?{' '}
+        <Link to="/login">Login here</Link>
+      </p>
+    </AuthCard>
   );
 };
 

@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from '../utils/axios';
+import AuthCard from '../components/AuthCard';
+import InputField from '../components/InputField';
+import Button from '../components/Button';
 
 const Login = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
@@ -21,7 +24,9 @@ const Login = () => {
     try {
       const { data } = await axios.post('/auth/login', formData);
       login(data);
-      navigate('/dashboard');
+      if (data.role === 'doctor') navigate('/doctor-dashboard');
+      else if (data.role === 'patient') navigate('/patient-dashboard');
+      else navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
     } finally {
@@ -30,53 +35,38 @@ const Login = () => {
   };
 
   return (
-    <div className="min-vh-100 d-flex align-items-center justify-content-center bg-light">
-      <div className="card shadow p-4" style={{ width: '400px' }}>
-        <div className="text-center mb-4">
-          <h2 className="fw-bold text-primary">Saanvi HMS</h2>
-          <p className="text-muted">Hospital Management System</p>
-        </div>
-        <h5 className="mb-3">Login</h5>
-        {error && <div className="alert alert-danger">{error}</div>}
-        <form onSubmit={handleSubmit}>
-          <div className="mb-3">
-            <label className="form-label">Email</label>
-            <input
-              type="email"
-              name="email"
-              className="form-control"
-              placeholder="Enter your email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div className="mb-3">
-            <label className="form-label">Password</label>
-            <input
-              type="password"
-              name="password"
-              className="form-control"
-              placeholder="Enter your password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <button
-            type="submit"
-            className="btn btn-primary w-100"
-            disabled={loading}
-          >
-            {loading ? 'Logging in...' : 'Login'}
-          </button>
-        </form>
-        <p className="text-center mt-3 mb-0">
-          Don't have an account?{' '}
-          <Link to="/register">Register here</Link>
-        </p>
-      </div>
-    </div>
+    <AuthCard title="Login">
+      {error && <div className="alert alert-danger">{error}</div>}
+      <form onSubmit={handleSubmit}>
+        <InputField
+          label="Email"
+          type="email"
+          name="email"
+          placeholder="Enter your email"
+          value={formData.email}
+          onChange={handleChange}
+          required
+        />
+        <InputField
+          label="Password"
+          type="password"
+          name="password"
+          placeholder="Enter your password"
+          value={formData.password}
+          onChange={handleChange}
+          required
+        />
+        <Button
+          text="Login"
+          type="submit"
+          loading={loading}
+        />
+      </form>
+      <p className="text-center mt-3 mb-0">
+        Don't have an account?{' '}
+        <Link to="/register">Register here</Link>
+      </p>
+    </AuthCard>
   );
 };
 

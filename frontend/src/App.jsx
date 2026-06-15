@@ -3,10 +3,14 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
+import DoctorDashboard from './pages/DoctorDashboard';
+import PatientDashboard from './pages/PatientDashboard';
 
-const PrivateRoute = ({ children }) => {
+const PrivateRoute = ({ children, role }) => {
   const { user } = useAuth();
-  return user ? children : <Navigate to="/login" />;
+  if (!user) return <Navigate to="/login" />;
+  if (role && user.role !== role) return <Navigate to="/login" />;
+  return children;
 };
 
 function App() {
@@ -19,8 +23,24 @@ function App() {
           <Route
             path="/dashboard"
             element={
-              <PrivateRoute>
+              <PrivateRoute role="admin">
                 <Dashboard />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/doctor-dashboard"
+            element={
+              <PrivateRoute role="doctor">
+                <DoctorDashboard />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/patient-dashboard"
+            element={
+              <PrivateRoute role="patient">
+                <PatientDashboard />
               </PrivateRoute>
             }
           />
