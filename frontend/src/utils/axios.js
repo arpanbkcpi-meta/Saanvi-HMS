@@ -1,0 +1,19 @@
+import axios from 'axios';
+
+const instance = axios.create({
+  baseURL: '/api',
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
+// Automatically add token to every request if it exists
+instance.interceptors.request.use((config) => {
+  const user = JSON.parse(localStorage.getItem('user'));
+  if (user && user.token) {
+    config.headers.Authorization = `Bearer ${user.token}`;
+  }
+  return config;
+});
+
+export default instance;
