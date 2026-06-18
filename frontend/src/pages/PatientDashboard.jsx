@@ -44,6 +44,15 @@ const PatientDashboard = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handleDelete = async (id) => {
+    try {
+      await axios.delete(`/appointments/${id}`);
+      fetchAppointments();
+    } catch (error) {
+      console.error('Error deleting appointment:', error);
+    }
+  };
+
   const handleBooking = async (e) => {
     e.preventDefault();
     setError('');
@@ -64,7 +73,6 @@ const PatientDashboard = () => {
       <div className="container mt-4">
         <h4 className="mb-4">Patient Dashboard 🏥</h4>
 
-        {/* Stats */}
         <div className="row g-4 mb-4">
           <div className="col-md-4">
             <div className="card shadow-sm border-0">
@@ -112,7 +120,6 @@ const PatientDashboard = () => {
         </div>
 
         <div className="row g-4">
-          {/* Book Appointment */}
           <div className="col-md-5">
             <div className="card shadow-sm border-0">
               <div className="card-body">
@@ -172,7 +179,6 @@ const PatientDashboard = () => {
             </div>
           </div>
 
-          {/* Appointment History */}
           <div className="col-md-7">
             <div className="card shadow-sm border-0">
               <div className="card-body">
@@ -194,6 +200,7 @@ const PatientDashboard = () => {
                           <th>Date</th>
                           <th>Reason</th>
                           <th>Status</th>
+                          <th>Action</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -209,6 +216,16 @@ const PatientDashboard = () => {
                               }`}>
                                 {apt.status}
                               </span>
+                            </td>
+                            <td>
+                              {apt.status === 'pending' && (
+                                <button
+                                  className="btn btn-outline-danger btn-sm"
+                                  onClick={() => handleDelete(apt._id)}
+                                >
+                                  Cancel
+                                </button>
+                              )}
                             </td>
                           </tr>
                         ))}
