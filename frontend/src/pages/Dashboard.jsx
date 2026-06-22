@@ -1,10 +1,48 @@
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import axios from '../utils/axios';
 import { FaUserMd, FaHospital, FaSignOutAlt, FaUser } from 'react-icons/fa';
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  const [doctors, setDoctors] = useState([]);
+  const [patients, setPatients] = useState([]);
+
+  useEffect(() => {
+  fetchData();
+}, []);
+
+const fetchData = async () => {
+  try {
+    const token = user?.token;
+
+    const config = {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    };
+
+    const doctorsRes = await axios.get(
+      '/users/doctors',
+      config
+    );
+
+    const patientsRes = await axios.get(
+      '/users/patients',
+      config
+    );
+
+    setDoctors(doctorsRes.data);
+    setPatients(patientsRes.data);
+
+  } catch (error) {
+    console.error(error);
+  }
+};
+
 
   const handleLogout = () => {
     logout();
@@ -48,7 +86,9 @@ const Dashboard = () => {
                 </div>
                 <div>
                   <h6 className="text-muted mb-0">Total Doctors</h6>
-                  <h3 className="fw-bold mb-0">12</h3>
+                 <h3 className="fw-bold mb-0">
+  {doctors.length}
+</h3>
                 </div>
               </div>
             </div>
@@ -61,7 +101,9 @@ const Dashboard = () => {
                 </div>
                 <div>
                   <h6 className="text-muted mb-0">Total Patients</h6>
-                  <h3 className="fw-bold mb-0">248</h3>
+                 <h3 className="fw-bold mb-0">
+                      {patients.length}
+                </h3>
                 </div>
               </div>
             </div>

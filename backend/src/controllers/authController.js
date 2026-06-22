@@ -7,23 +7,66 @@ const generateToken = (id) => {
 
 const registerUser = async (req, res) => {
   try {
-    const { name, email, password, role, specialization, experience, age, gender, phone } = req.body;
-    const userExists = await User.findOne({ email });
-    if (userExists) {
-      return res.status(400).json({ message: 'User already exists' });
+    const {
+      name,
+      email,
+      password,
+      role,
+      specialization,
+      experience,
+      age,
+      gender,
+      phone
+    } = req.body;
+
+    // Only doctor and patient can register
+    const allowedRoles = ['doctor', 'patient'];
+
+    if (!allowedRoles.includes(role)) {
+      return res.status(400).json({
+        message: 'Invalid role'
+      });
     }
-    const user = await User.create({ name, email, password, role, specialization, experience, age, gender, phone });
+
+    const userExists = await User.findOne({ email });
+
+    if (userExists) {
+      return res.status(400).json({
+        message: 'User already exists'
+      });
+    }
+
+    const user = await User.create({
+      name,
+      email,
+      password,
+      role,
+      specialization,
+      experience,
+      age,
+      gender,
+      phone
+    });
+
     if (user) {
       res.status(201).json({
-        _id: user._id, name: user.name, email: user.email, role: user.role,
-        specialization: user.specialization, experience: user.experience,
-        age: user.age, gender: user.gender, phone: user.phone,
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        specialization: user.specialization,
+        experience: user.experience,
+        age: user.age,
+        gender: user.gender,
+        phone: user.phone,
         token: generateToken(user._id)
       });
     }
   } catch (error) {
     console.error('Register error:', error.message);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      message: error.message
+    });
   }
 };
 
