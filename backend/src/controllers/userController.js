@@ -30,4 +30,62 @@ const deleteUser = async (req, res) => {
   }
 };
 
-module.exports = { getDoctors, getPatients, deleteUser };
+const addDoctor = async (req, res) => {
+  try {
+    const { name, email, password, specialization, experience, phone } = req.body;
+    
+    const userExists = await User.findOne({ email });
+    if (userExists) {
+      return res.status(400).json({ message: 'User already exists' });
+    }
+
+    const doctor = await User.create({
+      name, email, password, phone,
+      role: 'doctor',
+      specialization: specialization || '',
+      experience: experience || 0
+    });
+
+    res.status(201).json({
+      _id: doctor._id,
+      name: doctor.name,
+      email: doctor.email,
+      role: doctor.role,
+      specialization: doctor.specialization,
+      experience: doctor.experience
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const addPatient = async (req, res) => {
+  try {
+    const { name, email, password, age, gender, phone } = req.body;
+    
+    const userExists = await User.findOne({ email });
+    if (userExists) {
+      return res.status(400).json({ message: 'User already exists' });
+    }
+
+    const patient = await User.create({
+      name, email, password, phone,
+      role: 'patient',
+      age: age || 0,
+      gender: gender || 'male'
+    });
+
+    res.status(201).json({
+      _id: patient._id,
+      name: patient.name,
+      email: patient.email,
+      role: patient.role,
+      age: patient.age,
+      gender: patient.gender
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+module.exports = { getDoctors, getPatients, deleteUser, addDoctor, addPatient };

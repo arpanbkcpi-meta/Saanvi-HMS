@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FaUserMd, FaUsers, FaTrash, FaSort } from 'react-icons/fa';
+import { FaUserMd, FaUsers, FaTrash, FaSort, FaPlus } from 'react-icons/fa';
 import Navbar from '../components/Navbar';
 import axios from '../utils/axios';
 
@@ -9,6 +9,15 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [doctorSort, setDoctorSort] = useState('asc');
   const [patientSort, setPatientSort] = useState('asc');
+  const [showAddDoctor, setShowAddDoctor] = useState(false);
+  const [showAddPatient, setShowAddPatient] = useState(false);
+  const [doctorForm, setDoctorForm] = useState({
+    name: '', email: '', password: '', specialization: '', experience: '', phone: ''
+  });
+  const [patientForm, setPatientForm] = useState({
+    name: '', email: '', password: '', age: '', gender: 'male', phone: ''
+  });
+  const [error, setError] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -26,6 +35,32 @@ const AdminDashboard = () => {
       console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAddDoctor = async (e) => {
+    e.preventDefault();
+    setError('');
+    try {
+      const { data } = await axios.post('/users/doctor', doctorForm);
+      setDoctors([...doctors, data]);
+      setDoctorForm({ name: '', email: '', password: '', specialization: '', experience: '', phone: '' });
+      setShowAddDoctor(false);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to add doctor');
+    }
+  };
+
+  const handleAddPatient = async (e) => {
+    e.preventDefault();
+    setError('');
+    try {
+      const { data } = await axios.post('/users/patient', patientForm);
+      setPatients([...patients, data]);
+      setPatientForm({ name: '', email: '', password: '', age: '', gender: 'male', phone: '' });
+      setShowAddPatient(false);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to add patient');
     }
   };
 
@@ -69,6 +104,8 @@ const AdminDashboard = () => {
       <div className="container mt-4">
         <h4 className="mb-4">Admin Dashboard 👨‍💼</h4>
 
+        {error && <div className="alert alert-danger">{error}</div>}
+
         {/* Stats */}
         <div className="row g-4 mb-4">
           <div className="col-md-6">
@@ -109,14 +146,75 @@ const AdminDashboard = () => {
                     <FaUserMd className="me-2 text-primary" />
                     Doctors
                   </h5>
-                  <button
-                    className="btn btn-sm btn-outline-primary"
-                    onClick={() => setDoctorSort(doctorSort === 'asc' ? 'desc' : 'asc')}
-                  >
-                    <FaSort className="me-1" />
-                    Sort
-                  </button>
+                  <div className="d-flex gap-2">
+                    <button
+                      className="btn btn-sm btn-primary"
+                      onClick={() => setShowAddDoctor(!showAddDoctor)}
+                    >
+                      <FaPlus className="me-1" />
+                      Add
+                    </button>
+                    <button
+                      className="btn btn-sm btn-outline-primary"
+                      onClick={() => setDoctorSort(doctorSort === 'asc' ? 'desc' : 'asc')}
+                    >
+                      <FaSort className="me-1" />
+                      Sort
+                    </button>
+                  </div>
                 </div>
+
+                {showAddDoctor && (
+                  <form onSubmit={handleAddDoctor} className="mb-3 p-3 bg-light rounded">
+                    <input
+                      type="text"
+                      className="form-control mb-2"
+                      placeholder="Name"
+                      value={doctorForm.name}
+                      onChange={(e) => setDoctorForm({...doctorForm, name: e.target.value})}
+                      required
+                    />
+                    <input
+                      type="email"
+                      className="form-control mb-2"
+                      placeholder="Email"
+                      value={doctorForm.email}
+                      onChange={(e) => setDoctorForm({...doctorForm, email: e.target.value})}
+                      required
+                    />
+                    <input
+                      type="password"
+                      className="form-control mb-2"
+                      placeholder="Password"
+                      value={doctorForm.password}
+                      onChange={(e) => setDoctorForm({...doctorForm, password: e.target.value})}
+                      required
+                    />
+                    <input
+                      type="text"
+                      className="form-control mb-2"
+                      placeholder="Specialization"
+                      value={doctorForm.specialization}
+                      onChange={(e) => setDoctorForm({...doctorForm, specialization: e.target.value})}
+                    />
+                    <input
+                      type="number"
+                      className="form-control mb-2"
+                      placeholder="Experience (years)"
+                      value={doctorForm.experience}
+                      onChange={(e) => setDoctorForm({...doctorForm, experience: e.target.value})}
+                    />
+                    <input
+                      type="text"
+                      className="form-control mb-2"
+                      placeholder="Phone"
+                      value={doctorForm.phone}
+                      onChange={(e) => setDoctorForm({...doctorForm, phone: e.target.value})}
+                    />
+                    <button type="submit" className="btn btn-primary w-100 btn-sm">Add Doctor</button>
+                  </form>
+                )}
+
                 {loading ? (
                   <div className="text-center py-4">
                     <div className="spinner-border text-primary" />
@@ -165,14 +263,77 @@ const AdminDashboard = () => {
                     <FaUsers className="me-2 text-success" />
                     Patients
                   </h5>
-                  <button
-                    className="btn btn-sm btn-outline-success"
-                    onClick={() => setPatientSort(patientSort === 'asc' ? 'desc' : 'asc')}
-                  >
-                    <FaSort className="me-1" />
-                    Sort
-                  </button>
+                  <div className="d-flex gap-2">
+                    <button
+                      className="btn btn-sm btn-success"
+                      onClick={() => setShowAddPatient(!showAddPatient)}
+                    >
+                      <FaPlus className="me-1" />
+                      Add
+                    </button>
+                    <button
+                      className="btn btn-sm btn-outline-success"
+                      onClick={() => setPatientSort(patientSort === 'asc' ? 'desc' : 'asc')}
+                    >
+                      <FaSort className="me-1" />
+                      Sort
+                    </button>
+                  </div>
                 </div>
+
+                {showAddPatient && (
+                  <form onSubmit={handleAddPatient} className="mb-3 p-3 bg-light rounded">
+                    <input
+                      type="text"
+                      className="form-control mb-2"
+                      placeholder="Name"
+                      value={patientForm.name}
+                      onChange={(e) => setPatientForm({...patientForm, name: e.target.value})}
+                      required
+                    />
+                    <input
+                      type="email"
+                      className="form-control mb-2"
+                      placeholder="Email"
+                      value={patientForm.email}
+                      onChange={(e) => setPatientForm({...patientForm, email: e.target.value})}
+                      required
+                    />
+                    <input
+                      type="password"
+                      className="form-control mb-2"
+                      placeholder="Password"
+                      value={patientForm.password}
+                      onChange={(e) => setPatientForm({...patientForm, password: e.target.value})}
+                      required
+                    />
+                    <input
+                      type="number"
+                      className="form-control mb-2"
+                      placeholder="Age"
+                      value={patientForm.age}
+                      onChange={(e) => setPatientForm({...patientForm, age: e.target.value})}
+                    />
+                    <select
+                      className="form-select mb-2"
+                      value={patientForm.gender}
+                      onChange={(e) => setPatientForm({...patientForm, gender: e.target.value})}
+                    >
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                      <option value="other">Other</option>
+                    </select>
+                    <input
+                      type="text"
+                      className="form-control mb-2"
+                      placeholder="Phone"
+                      value={patientForm.phone}
+                      onChange={(e) => setPatientForm({...patientForm, phone: e.target.value})}
+                    />
+                    <button type="submit" className="btn btn-success w-100 btn-sm">Add Patient</button>
+                  </form>
+                )}
+
                 {loading ? (
                   <div className="text-center py-4">
                     <div className="spinner-border text-success" />

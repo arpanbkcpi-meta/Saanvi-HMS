@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FaUserMd, FaCalendarCheck, FaClock, FaCheckCircle } from 'react-icons/fa';
+import { FaUserMd, FaCalendarCheck, FaClock, FaCheckCircle, FaPills } from 'react-icons/fa';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
 import axios from '../utils/axios';
@@ -7,10 +7,18 @@ import axios from '../utils/axios';
 const DoctorDashboard = () => {
   const { user } = useAuth();
   const [appointments, setAppointments] = useState([]);
+  const [prescriptions, setPrescriptions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showPrescribeForm, setShowPrescribeForm] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [medicineList, setMedicineList] = useState([
+    { name: '', dosage: '', frequency: '', duration: '' }
+  ]);
+  const [notes, setNotes] = useState('');
 
   useEffect(() => {
     fetchAppointments();
+    fetchPrescriptions();
   }, []);
 
   const fetchAppointments = async () => {
@@ -24,12 +32,51 @@ const DoctorDashboard = () => {
     }
   };
 
+  const fetchPrescriptions = async () => {
+    try {
+      const { data } = await axios.get('/prescriptions/doctor');
+      setPrescriptions(data);
+    } catch (error) {
+      console.error('Error fetching prescriptions:', error);
+    }
+  };
+
   const handleStatus = async (id, status) => {
     try {
       await axios.put(`/appointments/${id}/status`, { status });
       fetchAppointments();
     } catch (error) {
       console.error('Error updating appointment:', error);
+    }
+  };
+
+  const handleMedicineChange = (index, field, value) => {
+    const newList = [...medicineList];
+    newList[index][field] = value;
+    setMedicineList(newList);
+  };
+
+  const addMedicine = () => {
+    setMedicineList([...medicineList, { name: '', dosage: '', frequency: '', duration: '' }]);
+  };
+
+  const handlePrescribe = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.post('/prescriptions', {
+        appointmentId: selectedAppointment._id,
+        patientId: selectedAppointment.patientId._id,
+        medicines: medicineList.filter(m => m.name),
+        notes
+      });
+      fetchAppointments();
+      fetchPrescriptions();
+      setShowPrescribeForm(false);
+      setMedicineList([{ name: '', dosage: '', frequency: '', duration: '' }]);
+      setNotes('');
+      setSelectedAppointment(null);
+    } catch (error) {
+      console.error('Error creating prescription:', error);
     }
   };
 
@@ -84,6 +131,100 @@ const DoctorDashboard = () => {
             </div>
           </div>
         </div>
+
+        {/* Prescribe Modal */}
+        {showPrescribeForm && selectedAppointment && (
+          <div className="card shadow-sm border-0 mb-4">
+            <div className="card-body">
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <h5 className="card-title mb-0">
+                  <FaPills className="me-2 text-primary" />
+                  Prescribe for {selectedAppointment.patientId?.name}
+                </h5>
+                <button
+                  className="btn-close"
+                  onClick={() => setShowPrescribeForm(false)}
+                />
+              </div>
+              <form onSubmit={handlePrescribe}>
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">Medicines</label>
+                  {medicineList.map((med, idx) => (
+                    <div key={idx} className="row g-2 mb-2">
+                      <div className="col-md-3">
+                        <input
+                          type="text"
+                          className="form-control form-control-sm"
+                          placeholder="Medicine name"
+                          value={med.name}
+                          onChange={(e) => handleMedicineChange(idx, 'name', e.target.value)}
+                        />
+                      </div>
+                      <div className="col-md-3">
+                        <input
+                          type="text"
+                          className="form-control form-control-sm"
+                          placeholder="Dosage (e.g., 500mg)"
+                          value={med.dosage}
+                          onChange={(e) => handleMedicineChange(idx, 'dosage', e.target.value)}
+                        />
+                      </div>
+                      <div className="col-md-2">
+                        <input
+                          type="text"
+                          className="form-control form-control-sm"
+                          placeholder="Frequency (e.g., 2x daily)"
+                          value={med.frequency}
+                          onChange={(e) => handleMedicineChange(idx, 'frequency', e.target.value)}
+                        />
+                      </div>
+                     <div className="col-md-2">
+  <input
+    type="text"
+    className="form-control form-control-sm"
+    placeholder="Duration (e.g., 7 days)"
+    value={med.duration}
+    onChange={(e) => handleMedicineChange(idx, 'duration', e.target.value)}
+  />
+</div>
+<div className="col-md-1">
+  {medicineList.length > 1 && (
+    <button
+      type="button"
+      className="btn btn-danger btn-sm w-100"
+      onClick={() => setMedicineList(medicineList.filter((_, i) => i !== idx))}
+    >
+      ✕
+    </button>
+  )}
+</div>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-primary"
+                    onClick={addMedicine}
+                  >
+                    + Add Medicine
+                  </button>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">Notes</label>
+                  <textarea
+                    className="form-control"
+                    placeholder="Additional notes"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    rows={3}
+                  />
+                </div>
+                <button type="submit" className="btn btn-primary">
+                  Create Prescription
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
 
         {/* Doctor Info */}
         <div className="card shadow-sm border-0 mb-4">
@@ -159,6 +300,18 @@ const DoctorDashboard = () => {
                               </button>
                             </div>
                           )}
+                          {apt.status === 'approved' && (
+                            <button
+                              className="btn btn-info btn-sm"
+                              onClick={() => {
+                                setSelectedAppointment(apt);
+                                setShowPrescribeForm(true);
+                              }}
+                            >
+                              <FaPills className="me-1" />
+                              Prescribe
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -168,6 +321,44 @@ const DoctorDashboard = () => {
             )}
           </div>
         </div>
+
+        {/* Prescriptions Given */}
+        {prescriptions.length > 0 && (
+          <div className="card shadow-sm border-0 mt-4">
+            <div className="card-body">
+              <h5 className="card-title mb-3">
+                <FaPills className="me-2 text-primary" />
+                Prescriptions Given
+              </h5>
+              <div className="table-responsive">
+                <table className="table table-hover align-middle">
+                  <thead className="table-light">
+                    <tr>
+                      <th>Patient</th>
+                      <th>Medicines</th>
+                      <th>Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {prescriptions.map((presc) => (
+                      <tr key={presc._id}>
+                        <td>{presc.patientId?.name}</td>
+                        <td>
+                          {presc.medicines.map((med, idx) => (
+                            <div key={idx} className="small">
+                              {med.name} - {med.dosage}
+                            </div>
+                          ))}
+                        </td>
+                        <td>{new Date(presc.createdAt).toLocaleDateString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
