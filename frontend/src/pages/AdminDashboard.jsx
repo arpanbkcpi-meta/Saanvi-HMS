@@ -9,6 +9,8 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [doctorSort, setDoctorSort] = useState('asc');
   const [patientSort, setPatientSort] = useState('asc');
+  const [doctorPage, setDoctorPage] = useState(1);
+  const [patientPage, setPatientPage] = useState(1);
   const [showAddDoctor, setShowAddDoctor] = useState(false);
   const [showAddPatient, setShowAddPatient] = useState(false);
   const [doctorForm, setDoctorForm] = useState({
@@ -18,6 +20,7 @@ const AdminDashboard = () => {
     name: '', email: '', password: '', age: '', gender: 'male', phone: ''
   });
   const [error, setError] = useState('');
+  const itemsPerPage = 5;
 
   useEffect(() => {
     fetchData();
@@ -92,11 +95,19 @@ const AdminDashboard = () => {
       : b.name.localeCompare(a.name);
   });
 
+  const doctorStartIdx = (doctorPage - 1) * itemsPerPage;
+  const paginatedDoctors = sortedDoctors.slice(doctorStartIdx, doctorStartIdx + itemsPerPage);
+  const doctorPages = Math.ceil(sortedDoctors.length / itemsPerPage);
+
   const sortedPatients = [...patients].sort((a, b) => {
     return patientSort === 'asc'
       ? a.name.localeCompare(b.name)
       : b.name.localeCompare(a.name);
   });
+
+  const patientStartIdx = (patientPage - 1) * itemsPerPage;
+  const paginatedPatients = sortedPatients.slice(patientStartIdx, patientStartIdx + itemsPerPage);
+  const patientPages = Math.ceil(sortedPatients.length / itemsPerPage);
 
   return (
     <div className="min-vh-100 bg-light">
@@ -222,33 +233,54 @@ const AdminDashboard = () => {
                 ) : doctors.length === 0 ? (
                   <p className="text-muted text-center py-4">No doctors yet</p>
                 ) : (
-                  <div className="table-responsive">
-                    <table className="table table-hover align-middle">
-                      <thead className="table-light">
-                        <tr>
-                          <th>Name</th>
-                          <th>Specialization</th>
-                          <th>Action</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {sortedDoctors.map((doc) => (
-                          <tr key={doc._id}>
-                            <td>{doc.name}</td>
-                            <td>{doc.specialization || 'General'}</td>
-                            <td>
-                              <button
-                                className="btn btn-danger btn-sm"
-                                onClick={() => handleDeleteDoctor(doc._id)}
-                              >
-                                <FaTrash />
-                              </button>
-                            </td>
+                  <>
+                    <div className="table-responsive">
+                      <table className="table table-hover align-middle">
+                        <thead className="table-light">
+                          <tr>
+                            <th>Name</th>
+                            <th>Specialization</th>
+                            <th>Action</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {paginatedDoctors.map((doc) => (
+                            <tr key={doc._id}>
+                              <td>{doc.name}</td>
+                              <td>{doc.specialization || 'General'}</td>
+                              <td>
+                                <button
+                                  className="btn btn-danger btn-sm"
+                                  onClick={() => handleDeleteDoctor(doc._id)}
+                                >
+                                  <FaTrash />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {doctorPages > 1 && (
+                      <div className="d-flex justify-content-center gap-2 mt-3">
+                        <button
+                          className="btn btn-sm btn-outline-primary"
+                          onClick={() => setDoctorPage(prev => Math.max(1, prev - 1))}
+                          disabled={doctorPage === 1}
+                        >
+                          Previous
+                        </button>
+                        <span className="align-self-center">Page {doctorPage} of {doctorPages}</span>
+                        <button
+                          className="btn btn-sm btn-outline-primary"
+                          onClick={() => setDoctorPage(prev => Math.min(doctorPages, prev + 1))}
+                          disabled={doctorPage === doctorPages}
+                        >
+                          Next
+                        </button>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -341,33 +373,54 @@ const AdminDashboard = () => {
                 ) : patients.length === 0 ? (
                   <p className="text-muted text-center py-4">No patients yet</p>
                 ) : (
-                  <div className="table-responsive">
-                    <table className="table table-hover align-middle">
-                      <thead className="table-light">
-                        <tr>
-                          <th>Name</th>
-                          <th>Age</th>
-                          <th>Action</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {sortedPatients.map((pat) => (
-                          <tr key={pat._id}>
-                            <td>{pat.name}</td>
-                            <td>{pat.age || '-'}</td>
-                            <td>
-                              <button
-                                className="btn btn-danger btn-sm"
-                                onClick={() => handleDeletePatient(pat._id)}
-                              >
-                                <FaTrash />
-                              </button>
-                            </td>
+                  <>
+                    <div className="table-responsive">
+                      <table className="table table-hover align-middle">
+                        <thead className="table-light">
+                          <tr>
+                            <th>Name</th>
+                            <th>Age</th>
+                            <th>Action</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {paginatedPatients.map((pat) => (
+                            <tr key={pat._id}>
+                              <td>{pat.name}</td>
+                              <td>{pat.age || '-'}</td>
+                              <td>
+                                <button
+                                  className="btn btn-danger btn-sm"
+                                  onClick={() => handleDeletePatient(pat._id)}
+                                >
+                                  <FaTrash />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {patientPages > 1 && (
+                      <div className="d-flex justify-content-center gap-2 mt-3">
+                        <button
+                          className="btn btn-sm btn-outline-success"
+                          onClick={() => setPatientPage(prev => Math.max(1, prev - 1))}
+                          disabled={patientPage === 1}
+                        >
+                          Previous
+                        </button>
+                        <span className="align-self-center">Page {patientPage} of {patientPages}</span>
+                        <button
+                          className="btn btn-sm btn-outline-success"
+                          onClick={() => setPatientPage(prev => Math.min(patientPages, prev + 1))}
+                          disabled={patientPage === patientPages}
+                        >
+                          Next
+                        </button>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>

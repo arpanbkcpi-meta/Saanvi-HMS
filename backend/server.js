@@ -19,6 +19,8 @@ app.use(express.json());
 app.use('/api/auth', require('./src/routes/authRoutes'));
 app.use('/api/appointments', require('./src/routes/appointmentRoutes'));
 app.use('/api/prescriptions', require('./src/routes/prescriptionRoutes'));
+app.use('/api/labs', require('./src/routes/labRoutes'));
+app.use('/uploads', express.static('uploads'));
 app.use('/api/users', require('./src/routes/userRoutes'));
 
 // Health check

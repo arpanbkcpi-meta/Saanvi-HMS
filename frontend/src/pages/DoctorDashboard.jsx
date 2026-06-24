@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FaUserMd, FaCalendarCheck, FaClock, FaCheckCircle, FaPills } from 'react-icons/fa';
+import { FaUserMd, FaCalendarCheck, FaClock, FaCheckCircle, FaPills, FaFileUpload } from 'react-icons/fa';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
 import axios from '../utils/axios';
@@ -8,17 +8,26 @@ const DoctorDashboard = () => {
   const { user } = useAuth();
   const [appointments, setAppointments] = useState([]);
   const [prescriptions, setPrescriptions] = useState([]);
+  const [labs, setLabs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showPrescribeForm, setShowPrescribeForm] = useState(false);
+  const [showLabForm, setShowLabForm] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [selectedLabAppointment, setSelectedLabAppointment] = useState(null);
   const [medicineList, setMedicineList] = useState([
     { name: '', dosage: '', frequency: '', duration: '' }
   ]);
   const [notes, setNotes] = useState('');
+  const [labForm, setLabForm] = useState({
+    testName: '',
+    notes: '',
+    file: null
+  });
 
   useEffect(() => {
     fetchAppointments();
     fetchPrescriptions();
+    fetchLabs();
   }, []);
 
   const fetchAppointments = async () => {
@@ -38,6 +47,15 @@ const DoctorDashboard = () => {
       setPrescriptions(data);
     } catch (error) {
       console.error('Error fetching prescriptions:', error);
+    }
+  };
+
+  const fetchLabs = async () => {
+    try {
+      const { data } = await axios.get('/labs/doctor');
+      setLabs(data);
+    } catch (error) {
+      console.error('Error fetching labs:', error);
     }
   };
 
@@ -80,6 +98,29 @@ const DoctorDashboard = () => {
     }
   };
 
+  const handleUploadLab = async (e) => {
+    e.preventDefault();
+    const formData = new FormData();
+    formData.append('appointmentId', selectedLabAppointment._id);
+    formData.append('patientId', selectedLabAppointment.patientId._id);
+    formData.append('testName', labForm.testName);
+    formData.append('notes', labForm.notes);
+    formData.append('file', labForm.file);
+
+    try {
+      await axios.post('/labs', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      fetchAppointments();
+      fetchLabs();
+      setShowLabForm(false);
+      setLabForm({ testName: '', notes: '', file: null });
+      setSelectedLabAppointment(null);
+    } catch (error) {
+      console.error('Error uploading lab:', error);
+    }
+  };
+
   const pending = appointments.filter(a => a.status === 'pending');
   const approved = appointments.filter(a => a.status === 'approved');
 
@@ -89,7 +130,6 @@ const DoctorDashboard = () => {
       <div className="container mt-4">
         <h4 className="mb-4">Doctor Dashboard 👨‍⚕️</h4>
 
-        {/* Stats */}
         <div className="row g-4 mb-4">
           <div className="col-md-4">
             <div className="card shadow-sm border-0">
@@ -132,7 +172,6 @@ const DoctorDashboard = () => {
           </div>
         </div>
 
-        {/* Prescribe Modal */}
         {showPrescribeForm && selectedAppointment && (
           <div className="card shadow-sm border-0 mb-4">
             <div className="card-body">
@@ -141,10 +180,7 @@ const DoctorDashboard = () => {
                   <FaPills className="me-2 text-primary" />
                   Prescribe for {selectedAppointment.patientId?.name}
                 </h5>
-                <button
-                  className="btn-close"
-                  onClick={() => setShowPrescribeForm(false)}
-                />
+                <button className="btn-close" onClick={() => setShowPrescribeForm(false)} />
               </div>
               <form onSubmit={handlePrescribe}>
                 <div className="mb-3">
@@ -152,87 +188,67 @@ const DoctorDashboard = () => {
                   {medicineList.map((med, idx) => (
                     <div key={idx} className="row g-2 mb-2">
                       <div className="col-md-3">
-                        <input
-                          type="text"
-                          className="form-control form-control-sm"
-                          placeholder="Medicine name"
-                          value={med.name}
-                          onChange={(e) => handleMedicineChange(idx, 'name', e.target.value)}
-                        />
+                        <input type="text" className="form-control form-control-sm" placeholder="Medicine name" value={med.name} onChange={(e) => handleMedicineChange(idx, 'name', e.target.value)} />
                       </div>
                       <div className="col-md-3">
-                        <input
-                          type="text"
-                          className="form-control form-control-sm"
-                          placeholder="Dosage (e.g., 500mg)"
-                          value={med.dosage}
-                          onChange={(e) => handleMedicineChange(idx, 'dosage', e.target.value)}
-                        />
+                        <input type="text" className="form-control form-control-sm" placeholder="Dosage (e.g., 500mg)" value={med.dosage} onChange={(e) => handleMedicineChange(idx, 'dosage', e.target.value)} />
                       </div>
                       <div className="col-md-2">
-                        <input
-                          type="text"
-                          className="form-control form-control-sm"
-                          placeholder="Frequency (e.g., 2x daily)"
-                          value={med.frequency}
-                          onChange={(e) => handleMedicineChange(idx, 'frequency', e.target.value)}
-                        />
+                        <input type="text" className="form-control form-control-sm" placeholder="Frequency (e.g., 2x daily)" value={med.frequency} onChange={(e) => handleMedicineChange(idx, 'frequency', e.target.value)} />
                       </div>
-                     <div className="col-md-2">
-  <input
-    type="text"
-    className="form-control form-control-sm"
-    placeholder="Duration (e.g., 7 days)"
-    value={med.duration}
-    onChange={(e) => handleMedicineChange(idx, 'duration', e.target.value)}
-  />
-</div>
-<div className="col-md-1">
-  {medicineList.length > 1 && (
-    <button
-      type="button"
-      className="btn btn-danger btn-sm w-100"
-      onClick={() => setMedicineList(medicineList.filter((_, i) => i !== idx))}
-    >
-      ✕
-    </button>
-  )}
-</div>
+                      <div className="col-md-2">
+                        <input type="text" className="form-control form-control-sm" placeholder="Duration (e.g., 7 days)" value={med.duration} onChange={(e) => handleMedicineChange(idx, 'duration', e.target.value)} />
+                      </div>
+                      <div className="col-md-1">
+                        {medicineList.length > 1 && <button type="button" className="btn btn-danger btn-sm w-100" onClick={() => setMedicineList(medicineList.filter((_, i) => i !== idx))}>✕</button>}
+                      </div>
                     </div>
                   ))}
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-outline-primary"
-                    onClick={addMedicine}
-                  >
-                    + Add Medicine
-                  </button>
+                  <button type="button" className="btn btn-sm btn-outline-primary" onClick={addMedicine}>+ Add Medicine</button>
                 </div>
                 <div className="mb-3">
                   <label className="form-label fw-semibold">Notes</label>
-                  <textarea
-                    className="form-control"
-                    placeholder="Additional notes"
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    rows={3}
-                  />
+                  <textarea className="form-control" placeholder="Additional notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
                 </div>
-                <button type="submit" className="btn btn-primary">
-                  Create Prescription
-                </button>
+                <button type="submit" className="btn btn-primary">Create Prescription</button>
               </form>
             </div>
           </div>
         )}
 
-        {/* Doctor Info */}
+        {showLabForm && selectedLabAppointment && (
+          <div className="card shadow-sm border-0 mb-4">
+            <div className="card-body">
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <h5 className="card-title mb-0">
+                  <FaFileUpload className="me-2 text-warning" />
+                  Upload Lab Report for {selectedLabAppointment.patientId?.name}
+                </h5>
+                <button className="btn-close" onClick={() => setShowLabForm(false)} />
+              </div>
+              <form onSubmit={handleUploadLab}>
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">Test Name</label>
+                  <input type="text" className="form-control" placeholder="e.g., Blood Test, X-Ray" value={labForm.testName} onChange={(e) => setLabForm({...labForm, testName: e.target.value})} required />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">Upload File</label>
+                  <input type="file" className="form-control" onChange={(e) => setLabForm({...labForm, file: e.target.files[0]})} accept=".pdf,.jpg,.jpeg,.png" required />
+                  <small className="text-muted">PDF, JPG, PNG accepted</small>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">Notes</label>
+                  <textarea className="form-control" placeholder="Additional notes about the test" value={labForm.notes} onChange={(e) => setLabForm({...labForm, notes: e.target.value})} rows={3} />
+                </div>
+                <button type="submit" className="btn btn-warning">Upload Lab Report</button>
+              </form>
+            </div>
+          </div>
+        )}
+
         <div className="card shadow-sm border-0 mb-4">
           <div className="card-body">
-            <h5 className="card-title">
-              <FaUserMd className="me-2 text-primary" />
-              Your Profile
-            </h5>
+            <h5 className="card-title"><FaUserMd className="me-2 text-primary" />Your Profile</h5>
             <hr />
             <div className="row">
               <div className="col-md-6">
@@ -247,70 +263,32 @@ const DoctorDashboard = () => {
           </div>
         </div>
 
-        {/* Appointments */}
         <div className="card shadow-sm border-0">
           <div className="card-body">
             <h5 className="card-title mb-3">Appointments</h5>
-            {loading ? (
-              <div className="text-center py-4">
-                <div className="spinner-border text-primary" />
-              </div>
-            ) : appointments.length === 0 ? (
-              <p className="text-muted text-center py-4">No appointments yet</p>
-            ) : (
+            {loading ? <div className="text-center py-4"><div className="spinner-border text-primary" /></div> : appointments.length === 0 ? <p className="text-muted text-center py-4">No appointments yet</p> : (
               <div className="table-responsive">
                 <table className="table table-hover align-middle">
-                  <thead className="table-light">
-                    <tr>
-                      <th>Patient</th>
-                      <th>Date</th>
-                      <th>Reason</th>
-                      <th>Status</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
+                  <thead className="table-light"><tr><th>Patient</th><th>Date</th><th>Reason</th><th>Status</th><th>Action</th></tr></thead>
                   <tbody>
                     {appointments.map((apt) => (
                       <tr key={apt._id}>
                         <td>{apt.patientId?.name}</td>
                         <td>{new Date(apt.date).toLocaleDateString()}</td>
                         <td>{apt.reason}</td>
-                        <td>
-                          <span className={`badge bg-${
-                            apt.status === 'approved' ? 'success' :
-                            apt.status === 'rejected' ? 'danger' : 'warning'
-                          }`}>
-                            {apt.status}
-                          </span>
-                        </td>
+                        <td><span className={`badge bg-${apt.status === 'approved' ? 'success' : apt.status === 'rejected' ? 'danger' : 'warning'}`}>{apt.status}</span></td>
                         <td>
                           {apt.status === 'pending' && (
                             <div className="d-flex gap-2">
-                              <button
-                                className="btn btn-success btn-sm"
-                                onClick={() => handleStatus(apt._id, 'approved')}
-                              >
-                                Approve
-                              </button>
-                              <button
-                                className="btn btn-danger btn-sm"
-                                onClick={() => handleStatus(apt._id, 'rejected')}
-                              >
-                                Reject
-                              </button>
+                              <button className="btn btn-success btn-sm" onClick={() => handleStatus(apt._id, 'approved')}>Approve</button>
+                              <button className="btn btn-danger btn-sm" onClick={() => handleStatus(apt._id, 'rejected')}>Reject</button>
                             </div>
                           )}
                           {apt.status === 'approved' && (
-                            <button
-                              className="btn btn-info btn-sm"
-                              onClick={() => {
-                                setSelectedAppointment(apt);
-                                setShowPrescribeForm(true);
-                              }}
-                            >
-                              <FaPills className="me-1" />
-                              Prescribe
-                            </button>
+                            <div className="d-flex gap-1">
+                              <button className="btn btn-info btn-sm" onClick={() => { setSelectedAppointment(apt); setShowPrescribeForm(true); }}><FaPills className="me-1" />Rx</button>
+                              <button className="btn btn-warning btn-sm" onClick={() => { setSelectedLabAppointment(apt); setShowLabForm(true); }}><FaFileUpload className="me-1" />Lab</button>
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -322,35 +300,42 @@ const DoctorDashboard = () => {
           </div>
         </div>
 
-        {/* Prescriptions Given */}
         {prescriptions.length > 0 && (
           <div className="card shadow-sm border-0 mt-4">
             <div className="card-body">
-              <h5 className="card-title mb-3">
-                <FaPills className="me-2 text-primary" />
-                Prescriptions Given
-              </h5>
+              <h5 className="card-title mb-3"><FaPills className="me-2 text-primary" />Prescriptions Given</h5>
               <div className="table-responsive">
                 <table className="table table-hover align-middle">
-                  <thead className="table-light">
-                    <tr>
-                      <th>Patient</th>
-                      <th>Medicines</th>
-                      <th>Date</th>
-                    </tr>
-                  </thead>
+                  <thead className="table-light"><tr><th>Patient</th><th>Medicines</th><th>Date</th></tr></thead>
                   <tbody>
                     {prescriptions.map((presc) => (
                       <tr key={presc._id}>
                         <td>{presc.patientId?.name}</td>
-                        <td>
-                          {presc.medicines.map((med, idx) => (
-                            <div key={idx} className="small">
-                              {med.name} - {med.dosage}
-                            </div>
-                          ))}
-                        </td>
+                        <td>{presc.medicines.map((med, idx) => <div key={idx} className="small">{med.name} - {med.dosage}</div>)}</td>
                         <td>{new Date(presc.createdAt).toLocaleDateString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {labs.length > 0 && (
+          <div className="card shadow-sm border-0 mt-4">
+            <div className="card-body">
+              <h5 className="card-title mb-3"><FaFileUpload className="me-2 text-warning" />Lab Reports Uploaded</h5>
+              <div className="table-responsive">
+                <table className="table table-hover align-middle">
+                  <thead className="table-light"><tr><th>Patient</th><th>Test Name</th><th>File</th><th>Date</th></tr></thead>
+                  <tbody>
+                    {labs.map((lab) => (
+                      <tr key={lab._id}>
+                        <td>{lab.patientId?.name}</td>
+                        <td>{lab.testName}</td>
+                        <td><a href={lab.fileUrl} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline-primary">View</a></td>
+                        <td>{new Date(lab.createdAt).toLocaleDateString()}</td>
                       </tr>
                     ))}
                   </tbody>
