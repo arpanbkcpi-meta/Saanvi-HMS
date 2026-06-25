@@ -7,6 +7,7 @@ const PatientDashboard = () => {
   const [doctors, setDoctors] = useState([]);
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedDepartment, setSelectedDepartment] = useState('');
   const [formData, setFormData] = useState({
     doctorId: '',
     date: '',
@@ -61,11 +62,27 @@ const PatientDashboard = () => {
       await axios.post('/appointments', formData);
       setSuccess('Appointment booked successfully!');
       setFormData({ doctorId: '', date: '', reason: '' });
+      setSelectedDepartment('');
       fetchAppointments();
     } catch (err) {
       setError(err.response?.data?.message || 'Booking failed');
     }
   };
+
+  const handleFollowUp = (apt) => {
+    setSelectedDepartment(apt.doctorId?.specialization);
+    setFormData({
+      doctorId: apt.doctorId?._id,
+      date: '',
+      reason: `Follow-up: ${apt.reason}`
+    });
+    window.scrollTo(0, 0);
+  };
+
+  const departments = [...new Set(doctors.map(doc => doc.specialization))].filter(Boolean);
+  const doctorsInDepartment = selectedDepartment 
+    ? doctors.filter(doc => doc.specialization === selectedDepartment)
+    : doctors;
 
   return (
     <div className="min-vh-100 bg-light">
@@ -131,22 +148,42 @@ const PatientDashboard = () => {
                 {error && <div className="alert alert-danger">{error}</div>}
                 <form onSubmit={handleBooking}>
                   <div className="mb-3">
+                    <label className="form-label fw-semibold">Select Department</label>
+                    <select
+                      className="form-select"
+                      value={selectedDepartment}
+                      onChange={(e) => {
+                        setSelectedDepartment(e.target.value);
+                        setFormData({...formData, doctorId: ''});
+                      }}
+                      required
+                    >
+                      <option value="">Choose a department...</option>
+                      {departments.map((dept) => (
+                        <option key={dept} value={dept}>{dept}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="mb-3">
                     <label className="form-label fw-semibold">Select Doctor</label>
                     <select
                       name="doctorId"
                       className="form-select"
                       value={formData.doctorId}
                       onChange={handleChange}
+                      disabled={!selectedDepartment}
                       required
                     >
                       <option value="">Choose a doctor...</option>
-                      {doctors.map((doc) => (
+                      {doctorsInDepartment.map((doc) => (
                         <option key={doc._id} value={doc._id}>
-                          Dr. {doc.name} — {doc.specialization || 'General'}
+                          Dr. {doc.name}
                         </option>
                       ))}
                     </select>
                   </div>
+
                   <div className="mb-3">
                     <label className="form-label fw-semibold">Date</label>
                     <input
@@ -218,14 +255,24 @@ const PatientDashboard = () => {
                               </span>
                             </td>
                             <td>
-                              {apt.status === 'pending' && (
-                                <button
-                                  className="btn btn-outline-danger btn-sm"
-                                  onClick={() => handleDelete(apt._id)}
-                                >
-                                  Cancel
-                                </button>
-                              )}
+                              <div className="d-flex gap-2">
+                                {apt.status === 'pending' && (
+                                  <button
+                                    className="btn btn-outline-danger btn-sm"
+                                    onClick={() => handleDelete(apt._id)}
+                                  >
+                                    Cancel
+                                  </button>
+                                )}
+                                {apt.status === 'approved' && (
+                                  <button
+                                    className="btn btn-info btn-sm"
+                                    onClick={() => handleFollowUp(apt)}
+                                  >
+                                    Follow-up
+                                  </button>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         ))}

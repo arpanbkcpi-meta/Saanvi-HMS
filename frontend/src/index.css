@@ -1,0 +1,86 @@
+/* Mobile Responsive - Larger Text */
+@media (max-width: 768px) {
+  body {
+    font-size: 15px;
+  }
+
+  .form-select {
+    font-size: 15px;
+    padding: 10px 8px;
+    min-height: 40px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  select {
+    max-width: 100%;
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+
+  .form-select option {
+    font-size: 14px;
+    padding: 8px;
+  }
+
+  .table-responsive {
+    font-size: 14px;
+  }
+
+  .btn {
+    padding: 8px 10px;
+    font-size: 14px;
+    min-height: 40px;
+  }
+
+  .card-body {
+    padding: 12px;
+  }
+
+  .container {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  h5.card-title {
+    font-size: 16px;
+  }
+
+  h4 {
+    font-size: 18px;
+  }
+
+  .form-label {
+    font-size: 14px;
+  }
+
+  p {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  body {
+    font-size: 14px;
+  }
+
+  .form-select {
+    font-size: 14px;
+    padding: 8px 6px;
+    min-height: 38px;
+  }
+
+  .col-md-5, .col-md-7 {
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
+  }
+
+  .btn-sm {
+    padding: 6px 8px;
+    font-size: 13px;
+  }
+
+  h5.card-title {
+    font-size: 15px;
+  }
+}

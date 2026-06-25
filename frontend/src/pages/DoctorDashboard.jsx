@@ -10,6 +10,7 @@ const DoctorDashboard = () => {
   const [prescriptions, setPrescriptions] = useState([]);
   const [labs, setLabs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [appointmentFilter, setAppointmentFilter] = useState('all');
   const [showPrescribeForm, setShowPrescribeForm] = useState(false);
   const [showLabForm, setShowLabForm] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
@@ -121,8 +122,12 @@ const DoctorDashboard = () => {
     }
   };
 
-  const pending = appointments.filter(a => a.status === 'pending');
-  const approved = appointments.filter(a => a.status === 'approved');
+  const filteredAppointments = appointmentFilter === 'all' 
+    ? appointments 
+    : appointments.filter(a => a.status === appointmentFilter);
+
+  const pending = filteredAppointments.filter(a => a.status === 'pending');
+  const approved = filteredAppointments.filter(a => a.status === 'approved');
 
   return (
     <div className="min-vh-100 bg-light">
@@ -265,13 +270,26 @@ const DoctorDashboard = () => {
 
         <div className="card shadow-sm border-0">
           <div className="card-body">
-            <h5 className="card-title mb-3">Appointments</h5>
-            {loading ? <div className="text-center py-4"><div className="spinner-border text-primary" /></div> : appointments.length === 0 ? <p className="text-muted text-center py-4">No appointments yet</p> : (
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <h5 className="card-title mb-0">Appointments</h5>
+              <select
+                className="form-select form-select-sm"
+                style={{ width: '150px' }}
+                value={appointmentFilter}
+                onChange={(e) => setAppointmentFilter(e.target.value)}
+              >
+                <option value="all">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            </div>
+            {loading ? <div className="text-center py-4"><div className="spinner-border text-primary" /></div> : filteredAppointments.length === 0 ? <p className="text-muted text-center py-4">No appointments found</p> : (
               <div className="table-responsive">
                 <table className="table table-hover align-middle">
                   <thead className="table-light"><tr><th>Patient</th><th>Date</th><th>Reason</th><th>Status</th><th>Action</th></tr></thead>
                   <tbody>
-                    {appointments.map((apt) => (
+                    {filteredAppointments.map((apt) => (
                       <tr key={apt._id}>
                         <td>{apt.patientId?.name}</td>
                         <td>{new Date(apt.date).toLocaleDateString()}</td>
@@ -286,8 +304,8 @@ const DoctorDashboard = () => {
                           )}
                           {apt.status === 'approved' && (
                             <div className="d-flex gap-1">
-                              <button className="btn btn-info btn-sm" onClick={() => { setSelectedAppointment(apt); setShowPrescribeForm(true); }}><FaPills className="me-1" />Rx</button>
-                              <button className="btn btn-warning btn-sm" onClick={() => { setSelectedLabAppointment(apt); setShowLabForm(true); }}><FaFileUpload className="me-1" />Lab</button>
+                              <button className="btn btn-info btn-sm" onClick={() => { setSelectedAppointment(apt); setShowPrescribeForm(true); window.scrollTo(0, 0); }}><FaPills className="me-1" />Rx</button>
+                              <button className="btn btn-warning btn-sm" onClick={() => { setSelectedLabAppointment(apt); setShowLabForm(true); window.scrollTo(0, 0); }}><FaFileUpload className="me-1" />Lab</button>
                             </div>
                           )}
                         </td>
