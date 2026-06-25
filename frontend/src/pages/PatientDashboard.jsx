@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { FaCalendarPlus, FaCalendarCheck, FaClock, FaTimesCircle } from 'react-icons/fa';
+import { FaCalendarPlus, FaCalendarCheck, FaClock, FaTimesCircle, FaPills, FaFileDownload } from 'react-icons/fa';
 import Navbar from '../components/Navbar';
 import axios from '../utils/axios';
 
 const PatientDashboard = () => {
   const [doctors, setDoctors] = useState([]);
   const [appointments, setAppointments] = useState([]);
+  const [prescriptions, setPrescriptions] = useState([]);
+  const [labs, setLabs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [formData, setFormData] = useState({
@@ -19,6 +21,8 @@ const PatientDashboard = () => {
   useEffect(() => {
     fetchDoctors();
     fetchAppointments();
+    fetchPrescriptions();
+    fetchLabs();
   }, []);
 
   const fetchDoctors = async () => {
@@ -38,6 +42,24 @@ const PatientDashboard = () => {
       console.error('Error fetching appointments:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPrescriptions = async () => {
+    try {
+      const { data } = await axios.get('/prescriptions/patient');
+      setPrescriptions(data);
+    } catch (error) {
+      console.error('Error fetching prescriptions:', error);
+    }
+  };
+
+  const fetchLabs = async () => {
+    try {
+      const { data } = await axios.get('/labs/patient');
+      setLabs(data);
+    } catch (error) {
+      console.error('Error fetching labs:', error);
     }
   };
 
@@ -284,6 +306,82 @@ const PatientDashboard = () => {
             </div>
           </div>
         </div>
+
+        {/* My Prescriptions */}
+        {prescriptions.length > 0 && (
+          <div className="card shadow-sm border-0 mt-4">
+            <div className="card-body">
+              <h5 className="card-title mb-3">
+                <FaPills className="me-2 text-primary" />
+                My Prescriptions
+              </h5>
+              <div className="table-responsive">
+                <table className="table table-hover align-middle">
+                  <thead className="table-light">
+                    <tr>
+                      <th>Doctor</th>
+                      <th>Medicines</th>
+                      <th>Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {prescriptions.map((presc) => (
+                      <tr key={presc._id}>
+                        <td>Dr. {presc.doctorId?.name}</td>
+                        <td>
+                          {presc.medicines.map((med, idx) => (
+                            <div key={idx} className="small">
+                              {med.name} - {med.dosage}, {med.frequency}, {med.duration}
+                            </div>
+                          ))}
+                        </td>
+                        <td>{new Date(presc.createdAt).toLocaleDateString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* My Lab Reports */}
+        {labs.length > 0 && (
+          <div className="card shadow-sm border-0 mt-4">
+            <div className="card-body">
+              <h5 className="card-title mb-3">
+                <FaFileDownload className="me-2 text-warning" />
+                My Lab Reports
+              </h5>
+              <div className="table-responsive">
+                <table className="table table-hover align-middle">
+                  <thead className="table-light">
+                    <tr>
+                      <th>Doctor</th>
+                      <th>Test Name</th>
+                      <th>File</th>
+                      <th>Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {labs.map((lab) => (
+                      <tr key={lab._id}>
+                        <td>Dr. {lab.doctorId?.name}</td>
+                        <td>{lab.testName}</td>
+                        <td>
+                          <a href={lab.fileUrl} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline-primary">
+                            Download
+                          </a>
+                        </td>
+                        <td>{new Date(lab.createdAt).toLocaleDateString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
