@@ -13,13 +13,14 @@ const uploadLabReport = async (req, res) => {
       doctorId: req.user._id,
       patientId,
       testName,
-      fileUrl: `/uploads/${req.file.filename}`,
+      fileUrl: `http://localhost:3001/uploads/${req.file.filename}`,
       fileName: req.file.originalname,
       notes
     });
 
     res.status(201).json(lab);
   } catch (error) {
+    console.error('Error uploading lab:', error);
     res.status(500).json({ message: error.message });
   }
 };
