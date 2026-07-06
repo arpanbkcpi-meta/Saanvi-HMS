@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import DoctorDashboard from './pages/DoctorDashboard';
 import PatientDashboard from './pages/PatientDashboard';
+import MedicalHistory from './pages/MedicalHistory';
 
 const PrivateRoute = ({ children, role }) => {
   const { user } = useAuth();
@@ -42,6 +43,14 @@ function App() {
             element={
               <PrivateRoute role="patient">
                 <PatientDashboard />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/medical-history"
+            element={
+              <PrivateRoute>
+                <MedicalHistory />
               </PrivateRoute>
             }
           />

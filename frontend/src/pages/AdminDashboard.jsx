@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { FaUserMd, FaUsers, FaTrash, FaSort, FaPlus, FaUserShield, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import Navbar from '../components/Navbar';
 import axios from '../utils/axios';
+import { useNavigate } from 'react-router-dom';
 
 const AdminDashboard = () => {
+  const navigate = useNavigate();
   const [doctors, setDoctors] = useState([]);
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -466,9 +468,14 @@ const AdminDashboard = () => {
                           </td>
                           <td style={{ ...tdStyle, color: '#64748b' }}>{pat.phone || '-'}</td>
                           <td style={tdStyle}>
-                            <button onClick={() => handleDeletePatient(pat._id)} style={{ background: '#fee2e2', color: '#dc2626', border: 'none', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              <FaTrash size={11} /> Delete
-                            </button>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <button onClick={() => navigate('/medical-history', { state: { patientId: pat._id } })} style={{ background: '#e0f2fe', color: '#0369a1', border: 'none', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                ❤️ EMR
+                              </button>
+                              <button onClick={() => handleDeletePatient(pat._id)} style={{ background: '#fee2e2', color: '#dc2626', border: 'none', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <FaTrash size={11} /> Delete
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}

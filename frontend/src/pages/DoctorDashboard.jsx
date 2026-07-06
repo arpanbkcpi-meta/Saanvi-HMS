@@ -3,9 +3,11 @@ import { FaUserMd, FaCalendarCheck, FaClock, FaCheckCircle, FaPills, FaFileUploa
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
 import axios from '../utils/axios';
+import { useNavigate } from 'react-router-dom';
 
 const DoctorDashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [appointments, setAppointments] = useState([]);
   const [prescriptions, setPrescriptions] = useState([]);
   const [labs, setLabs] = useState([]);
@@ -370,6 +372,7 @@ const DoctorDashboard = () => {
                             {apt.status === 'approved' && (<>
                               <button style={{ background: '#ede9fe', color: '#7c3aed', border: 'none', padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }} onClick={() => { setSelectedAppointment(apt); setShowPrescribeForm(true); window.scrollTo(0, 0); }}>💊 Rx</button>
                               <button style={{ background: '#cffafe', color: '#0891b2', border: 'none', padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }} onClick={() => { setSelectedLabAppointment(apt); setShowLabForm(true); window.scrollTo(0, 0); }}>🔬 Lab</button>
+                              <button style={{ background: '#dbeafe', color: '#2563eb', border: 'none', padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }} onClick={() => navigate('/medical-history', { state: { patientId: apt.patientId?._id } })}>❤️ EMR</button>
                             </>)}
                           </div>
                         </td>

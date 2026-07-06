@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { FaCalendarPlus, FaCalendarCheck, FaClock, FaTimesCircle, FaPills, FaFileDownload, FaCheckCircle } from 'react-icons/fa';
+import { FaCalendarPlus, FaCalendarCheck, FaClock, FaTimesCircle, FaPills, FaFileDownload, FaCheckCircle, FaHeartbeat } from 'react-icons/fa';
 import Navbar from '../components/Navbar';
 import axios from '../utils/axios';
 import { useAuth } from '../context/AuthContext';
+import MedicalHistoryCard from '../components/MedicalHistoryCard';
 
 const PatientDashboard = () => {
   const { user } = useAuth();
@@ -10,6 +11,7 @@ const PatientDashboard = () => {
   const [appointments, setAppointments] = useState([]);
   const [prescriptions, setPrescriptions] = useState([]);
   const [labs, setLabs] = useState([]);
+  const [medicalHistory, setMedicalHistory] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [formData, setFormData] = useState({ doctorId: '', date: '', reason: '' });
@@ -22,6 +24,7 @@ const PatientDashboard = () => {
     fetchAppointments();
     fetchPrescriptions();
     fetchLabs();
+    fetchMedicalHistory();
   }, []);
 
   const fetchDoctors = async () => {
@@ -43,6 +46,17 @@ const PatientDashboard = () => {
   const fetchLabs = async () => {
     try { const { data } = await axios.get('/labs/patient'); setLabs(data); }
     catch (error) { console.error(error); }
+  };
+
+  const fetchMedicalHistory = async () => {
+    try {
+      const { data } = await axios.get('/medical-histories');
+      if (data && data.length > 0) {
+        setMedicalHistory(data[0]);
+      }
+    } catch (e) {
+      console.error('Error fetching history:', e);
+    }
   };
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -270,6 +284,7 @@ const PatientDashboard = () => {
             { key: 'appointments', label: '🗓 My Appointments' },
             { key: 'prescriptions', label: '💊 Prescriptions' },
             { key: 'labs', label: '🔬 Lab Reports' },
+            { key: 'history', label: '❤️ Medical History' },
           ].map(tab => (
             <button key={tab.key} style={tabStyle(activeTab === tab.key)} onClick={() => setActiveTab(tab.key)}>
               {tab.label}
@@ -279,7 +294,7 @@ const PatientDashboard = () => {
 
         {/* Overview Tab */}
         {activeTab === 'overview' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
             {/* Recent Appointments */}
             <div style={cardStyle}>
               <h6 style={{ fontWeight: 700, color: '#0f172a', marginBottom: '16px', fontSize: '16px' }}>
@@ -316,6 +331,80 @@ const PatientDashboard = () => {
                     </div>
                   </div>
                 ))
+              )}
+            </div>
+
+            {/* Quick Medical Info */}
+            <div style={cardStyle}>
+              <h6 style={{ fontWeight: 700, color: '#0f172a', marginBottom: '16px', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ color: '#ef4444' }}><FaHeartbeat /></span> Quick Medical Info
+              </h6>
+              {!medicalHistory ? (
+                <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                  <p style={{ color: '#94a3b8', fontSize: '13px', margin: '0 0 12px' }}>No medical history record initialized.</p>
+                  <button
+                    onClick={() => setActiveTab('history')}
+                    style={{
+                      background: '#ede9fe',
+                      color: '#7c3aed',
+                      border: 'none',
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Set History Info
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
+                    <span style={{ color: '#64748b', fontSize: '13px' }}>Blood Group</span>
+                    <strong style={{ color: '#0f172a', fontSize: '14px' }}>{medicalHistory.bloodGroup}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
+                    <span style={{ color: '#64748b', fontSize: '13px' }}>BMI Value</span>
+                    <span style={{
+                      fontWeight: 700,
+                      fontSize: '12px',
+                      color: medicalHistory.bmi < 18.5 ? '#2563eb' : medicalHistory.bmi < 25 ? '#16a34a' : medicalHistory.bmi < 30 ? '#ca8a04' : '#dc2626',
+                      background: medicalHistory.bmi < 18.5 ? '#dbeafe' : medicalHistory.bmi < 25 ? '#dcfce7' : medicalHistory.bmi < 30 ? '#fef9c3' : '#fee2e2',
+                      padding: '2px 8px',
+                      borderRadius: '12px'
+                    }}>{medicalHistory.bmi || '—'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
+                    <span style={{ color: '#64748b', fontSize: '13px' }}>Allergies</span>
+                    <span style={{ color: '#0f172a', fontSize: '13px', textAlign: 'right', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {medicalHistory.allergies?.join(', ') || 'None'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
+                    <span style={{ color: '#64748b', fontSize: '13px' }}>Chronic Diseases</span>
+                    <span style={{ color: '#0f172a', fontSize: '13px', textAlign: 'right', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {medicalHistory.chronicDiseases?.join(', ') || 'None'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setActiveTab('history')}
+                    style={{
+                      background: '#e0f2fe',
+                      color: '#0369a1',
+                      border: 'none',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      marginTop: '4px',
+                      width: '100%'
+                    }}
+                  >
+                    View Full Medical History
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -508,6 +597,14 @@ const PatientDashboard = () => {
               </div>
             )}
           </div>
+        )}
+
+        {/* Medical History Tab */}
+        {activeTab === 'history' && (
+          <MedicalHistoryCard
+            history={medicalHistory}
+            canEdit={false}
+          />
         )}
 
       </div>

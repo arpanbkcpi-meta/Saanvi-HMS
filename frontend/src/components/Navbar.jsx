@@ -1,4 +1,4 @@
-import { FaHospital, FaUser, FaSignOutAlt, FaCalendarCheck, FaPills, FaFlask, FaUserMd, FaUserShield, FaTachometerAlt, FaUsers } from 'react-icons/fa';
+import { FaHospital, FaUser, FaSignOutAlt, FaCalendarCheck, FaPills, FaFlask, FaUserMd, FaUserShield, FaTachometerAlt, FaUsers, FaHeartbeat } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -19,17 +19,20 @@ const Navbar = () => {
       { icon: <FaCalendarCheck />, label: 'Appointments', path: '/patient-dashboard' },
       { icon: <FaPills />, label: 'Prescriptions', path: '/patient-dashboard' },
       { icon: <FaFlask />, label: 'Lab Reports', path: '/patient-dashboard' },
+      { icon: <FaHeartbeat />, label: 'Medical History', path: '/medical-history' },
     ],
     doctor: [
       { icon: <FaTachometerAlt />, label: 'Dashboard', path: '/doctor-dashboard' },
       { icon: <FaCalendarCheck />, label: 'Appointments', path: '/doctor-dashboard' },
       { icon: <FaPills />, label: 'Prescriptions', path: '/doctor-dashboard' },
       { icon: <FaFlask />, label: 'Lab Reports', path: '/doctor-dashboard' },
+      { icon: <FaHeartbeat />, label: 'Medical Histories', path: '/medical-history' },
     ],
     admin: [
       { icon: <FaTachometerAlt />, label: 'Dashboard', path: '/admin-dashboard' },
       { icon: <FaUserMd />, label: 'Doctors', path: '/admin-dashboard' },
       { icon: <FaUsers />, label: 'Patients', path: '/admin-dashboard' },
+      { icon: <FaHeartbeat />, label: 'Medical Histories', path: '/medical-history' },
     ],
   };
 
