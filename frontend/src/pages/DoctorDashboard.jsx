@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FaUserMd, FaCalendarCheck, FaClock, FaCheckCircle, FaPills, FaFileUpload, FaTimesCircle } from 'react-icons/fa';
+import { FaUserMd, FaCalendarCheck, FaClock, FaCheckCircle, FaPills, FaFileUpload, FaTimesCircle, FaCalendarAlt, FaPlus, FaTrash } from 'react-icons/fa';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
 import axios from '../utils/axios';
@@ -22,10 +22,24 @@ const DoctorDashboard = () => {
   const [labForm, setLabForm] = useState({ testName: '', notes: '', file: null });
   const [activeTab, setActiveTab] = useState('overview');
 
+  // ── Schedule state ────────────────────────────────────────────
+  const [schedule, setSchedule] = useState(null);
+  const [scheduleForm, setScheduleForm] = useState({
+    workingDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+    startTime: '09:00',
+    endTime: '17:00',
+    slotDurationMinutes: 30,
+    breakTimes: [],
+  });
+  const [scheduleSaved, setScheduleSaved] = useState(false);
+  const [scheduleError, setScheduleError] = useState('');
+  const [unavailableDate, setUnavailableDate] = useState('');
+
   useEffect(() => {
     fetchAppointments();
     fetchPrescriptions();
     fetchLabs();
+    fetchSchedule();
   }, []);
 
   const fetchAppointments = async () => {
@@ -41,6 +55,82 @@ const DoctorDashboard = () => {
   const fetchLabs = async () => {
     try { const { data } = await axios.get('/labs/doctor'); setLabs(data); }
     catch (e) { console.error(e); }
+  };
+
+  const fetchSchedule = async () => {
+    try {
+      const { data } = await axios.get(`/doctor-schedule/${user._id}`);
+      setSchedule(data);
+      setScheduleForm({
+        workingDays: data.workingDays,
+        startTime: data.startTime,
+        endTime: data.endTime,
+        slotDurationMinutes: data.slotDurationMinutes,
+        breakTimes: data.breakTimes || [],
+      });
+    } catch (e) {
+      // 404 means no schedule yet — that's fine
+      if (e.response?.status !== 404) console.error(e);
+    }
+  };
+
+  const handleSaveSchedule = async (e) => {
+    e.preventDefault();
+    setScheduleSaved(false);
+    setScheduleError('');
+    try {
+      await axios.post('/doctor-schedule', scheduleForm);
+      setScheduleSaved(true);
+      fetchSchedule();
+      setTimeout(() => setScheduleSaved(false), 3000);
+    } catch (err) {
+      setScheduleError(err.response?.data?.message || 'Failed to save schedule');
+    }
+  };
+
+  const toggleWorkingDay = (day) => {
+    setScheduleForm(prev => ({
+      ...prev,
+      workingDays: prev.workingDays.includes(day)
+        ? prev.workingDays.filter(d => d !== day)
+        : [...prev.workingDays, day],
+    }));
+  };
+
+  const addBreakTime = () => {
+    setScheduleForm(prev => ({
+      ...prev,
+      breakTimes: [...prev.breakTimes, { start: '12:00', end: '13:00' }],
+    }));
+  };
+
+  const updateBreakTime = (idx, field, val) => {
+    const updated = [...scheduleForm.breakTimes];
+    updated[idx] = { ...updated[idx], [field]: val };
+    setScheduleForm(prev => ({ ...prev, breakTimes: updated }));
+  };
+
+  const removeBreakTime = (idx) => {
+    setScheduleForm(prev => ({
+      ...prev,
+      breakTimes: prev.breakTimes.filter((_, i) => i !== idx),
+    }));
+  };
+
+  const handleMarkUnavailable = async () => {
+    if (!unavailableDate) return;
+    try {
+      await axios.post(`/doctor-schedule/${user._id}/unavailable`, { dates: [unavailableDate] });
+      setUnavailableDate('');
+      fetchSchedule();
+    } catch (err) { console.error(err); }
+  };
+
+  const handleRemoveUnavailable = async (date) => {
+    try {
+      await axios.delete(`/doctor-schedule/${user._id}/unavailable`, { data: { date } });
+      fetchSchedule();
+    } catch (err) { console.error(err); }
   };
 
   const handleStatus = async (id, status) => {
@@ -274,12 +364,13 @@ const DoctorDashboard = () => {
         </div>
 
         {/* Tabs */}
-        <div style={{ ...cardStyle, padding: '8px', marginBottom: '24px', display: 'inline-flex', gap: '4px' }}>
+        <div style={{ ...cardStyle, padding: '8px', marginBottom: '24px', display: 'inline-flex', gap: '4px', flexWrap: 'wrap' }}>
           {[
             { key: 'overview', label: '📊 Overview' },
             { key: 'appointments', label: '📅 Appointments' },
             { key: 'prescriptions', label: '💊 Prescriptions' },
             { key: 'labs', label: '🔬 Lab Reports' },
+            { key: 'schedule', label: '⏰ Schedule' },
             { key: 'profile', label: '👨‍⚕️ Profile' },
           ].map(tab => (
             <button key={tab.key} style={tabStyle(activeTab === tab.key)} onClick={() => setActiveTab(tab.key)}>
@@ -457,6 +548,187 @@ const DoctorDashboard = () => {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Schedule Tab */}
+        {activeTab === 'schedule' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+
+            {/* Schedule Form */}
+            <div style={cardStyle}>
+              <h6 style={{ fontWeight: 700, color: '#0f172a', marginBottom: '20px', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FaCalendarAlt style={{ color: '#3b82f6' }} /> Working Schedule
+              </h6>
+
+              {scheduleSaved && (
+                <div style={{ background: '#dcfce7', color: '#16a34a', padding: '10px 14px', borderRadius: '10px', marginBottom: '16px', fontSize: '13px', fontWeight: 500 }}>
+                  ✅ Schedule saved successfully!
+                </div>
+              )}
+              {scheduleError && (
+                <div style={{ background: '#fee2e2', color: '#dc2626', padding: '10px 14px', borderRadius: '10px', marginBottom: '16px', fontSize: '13px', fontWeight: 500 }}>
+                  ❌ {scheduleError}
+                </div>
+              )}
+
+              <form onSubmit={handleSaveSchedule}>
+                {/* Working Days */}
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={labelStyle}>Working Days</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>
+                    {['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].map(day => {
+                      const active = scheduleForm.workingDays.includes(day);
+                      return (
+                        <button
+                          key={day} type="button"
+                          onClick={() => toggleWorkingDay(day)}
+                          style={{
+                            padding: '6px 14px', borderRadius: '20px', border: 'none', cursor: 'pointer',
+                            fontSize: '12px', fontWeight: 600, transition: 'all 0.2s',
+                            background: active ? '#3b82f6' : '#f1f5f9',
+                            color: active ? 'white' : '#64748b',
+                            boxShadow: active ? '0 2px 8px rgba(59,130,246,0.3)' : 'none',
+                          }}
+                        >
+                          {day.slice(0, 3)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Working Hours */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+                  <div>
+                    <label style={labelStyle}>Start Time</label>
+                    <input
+                      type="time" style={inputStyle}
+                      value={scheduleForm.startTime}
+                      onChange={e => setScheduleForm(prev => ({ ...prev, startTime: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>End Time</label>
+                    <input
+                      type="time" style={inputStyle}
+                      value={scheduleForm.endTime}
+                      onChange={e => setScheduleForm(prev => ({ ...prev, endTime: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                {/* Slot Duration */}
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={labelStyle}>Appointment Slot Duration</label>
+                  <select
+                    style={inputStyle}
+                    value={scheduleForm.slotDurationMinutes}
+                    onChange={e => setScheduleForm(prev => ({ ...prev, slotDurationMinutes: Number(e.target.value) }))}
+                  >
+                    {[15, 30, 45, 60].map(d => (
+                      <option key={d} value={d}>{d} minutes</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Break Times */}
+                <div style={{ marginBottom: '20px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <label style={labelStyle}>Break Times</label>
+                    <button type="button" onClick={addBreakTime} style={{ background: '#ede9fe', color: '#7c3aed', border: 'none', padding: '5px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <FaPlus size={10} /> Add Break
+                    </button>
+                  </div>
+                  {scheduleForm.breakTimes.length === 0 ? (
+                    <p style={{ color: '#94a3b8', fontSize: '13px', margin: 0 }}>No breaks configured</p>
+                  ) : (
+                    scheduleForm.breakTimes.map((br, idx) => (
+                      <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+                        <input type="time" value={br.start} style={{ ...inputStyle, marginTop: 0, flex: 1 }}
+                          onChange={e => updateBreakTime(idx, 'start', e.target.value)} />
+                        <span style={{ color: '#94a3b8', fontSize: '12px' }}>to</span>
+                        <input type="time" value={br.end} style={{ ...inputStyle, marginTop: 0, flex: 1 }}
+                          onChange={e => updateBreakTime(idx, 'end', e.target.value)} />
+                        <button type="button" onClick={() => removeBreakTime(idx)}
+                          style={{ background: '#fee2e2', color: '#dc2626', border: 'none', borderRadius: '8px', padding: '8px 10px', cursor: 'pointer' }}>
+                          <FaTrash size={12} />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <button type="submit" style={{ background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '10px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', width: '100%', boxShadow: '0 4px 12px rgba(59,130,246,0.3)' }}>
+                  💾 Save Schedule
+                </button>
+              </form>
+            </div>
+
+            {/* Unavailable Dates */}
+            <div style={cardStyle}>
+              <h6 style={{ fontWeight: 700, color: '#0f172a', marginBottom: '20px', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                🚫 Unavailable Dates
+              </h6>
+
+              {!schedule ? (
+                <p style={{ color: '#94a3b8', fontSize: '13px' }}>Save a schedule first to mark unavailable dates.</p>
+              ) : (
+                <>
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                    <input
+                      type="date"
+                      value={unavailableDate}
+                      min={new Date().toISOString().split('T')[0]}
+                      style={{ ...inputStyle, marginTop: 0, flex: 1 }}
+                      onChange={e => setUnavailableDate(e.target.value)}
+                    />
+                    <button
+                      onClick={handleMarkUnavailable}
+                      style={{ background: '#fee2e2', color: '#dc2626', border: 'none', padding: '10px 16px', borderRadius: '10px', fontWeight: 600, fontSize: '13px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                    >
+                      Mark Off
+                    </button>
+                  </div>
+
+                  {schedule.unavailableDates?.length === 0 ? (
+                    <p style={{ color: '#94a3b8', fontSize: '13px', textAlign: 'center', padding: '20px 0' }}>No unavailable dates marked</p>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {schedule.unavailableDates.sort().map(date => (
+                        <div key={date} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff7f7', border: '1px solid #fecaca', borderRadius: '10px', padding: '10px 14px' }}>
+                          <div>
+                            <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '14px' }}>
+                              {new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleRemoveUnavailable(date)}
+                            style={{ background: '#fee2e2', color: '#dc2626', border: 'none', borderRadius: '6px', padding: '5px 10px', fontSize: '12px', cursor: 'pointer' }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Current Schedule Summary */}
+                  <div style={{ marginTop: '24px', background: '#f0f9ff', borderRadius: '12px', padding: '16px', border: '1px solid #bae6fd' }}>
+                    <div style={{ fontWeight: 700, color: '#0369a1', fontSize: '13px', marginBottom: '10px' }}>📋 Current Schedule</div>
+                    <div style={{ fontSize: '13px', color: '#0f172a', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <div>🗓 <strong>Days:</strong> {schedule.workingDays.map(d => d.slice(0,3)).join(', ')}</div>
+                      <div>⏰ <strong>Hours:</strong> {schedule.startTime} – {schedule.endTime}</div>
+                      <div>⏱ <strong>Slot:</strong> {schedule.slotDurationMinutes} min</div>
+                      {schedule.breakTimes?.length > 0 && (
+                        <div>☕ <strong>Breaks:</strong> {schedule.breakTimes.map(b => `${b.start}–${b.end}`).join(', ')}</div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
           </div>
         )}
 

@@ -23,7 +23,11 @@ const appointmentSchema = new mongoose.Schema({
     type: String,
     enum: ['pending', 'approved', 'rejected'],
     default: 'pending'
-  }
+  },
+  appointmentTime: {
+    type: String,   // "HH:MM" 24-hour format, e.g. "09:30"
+    default: null,
+  },
 }, {
   timestamps: true
 });

@@ -14,7 +14,10 @@ const PatientDashboard = () => {
   const [medicalHistory, setMedicalHistory] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedDepartment, setSelectedDepartment] = useState('');
-  const [formData, setFormData] = useState({ doctorId: '', date: '', reason: '' });
+  const [formData, setFormData] = useState({ doctorId: '', date: '', reason: '', appointmentTime: '' });
+  const [availableSlots, setAvailableSlots] = useState([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [doctorSchedule, setDoctorSchedule] = useState(null);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
@@ -59,7 +62,44 @@ const PatientDashboard = () => {
     }
   };
 
-  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+  const fetchDoctorSchedule = async (doctorId) => {
+    try {
+      const { data } = await axios.get(`/doctor-schedule/${doctorId}`);
+      setDoctorSchedule(data);
+    } catch {
+      setDoctorSchedule(null);
+    }
+  };
+
+  const fetchAvailableSlots = async (doctorId, date) => {
+    if (!doctorId || !date) return;
+    setLoadingSlots(true);
+    try {
+      const { data } = await axios.get(`/doctor-schedule/${doctorId}/available-slots?date=${date}`);
+      setAvailableSlots(data.slots || []);
+    } catch {
+      setAvailableSlots([]);
+    } finally {
+      setLoadingSlots(false);
+    }
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    const updated = { ...formData, [name]: value };
+    if (name === 'doctorId') {
+      updated.appointmentTime = '';
+      setAvailableSlots([]);
+      fetchDoctorSchedule(value);
+      if (updated.date) fetchAvailableSlots(value, updated.date);
+    }
+    if (name === 'date') {
+      updated.appointmentTime = '';
+      setAvailableSlots([]);
+      if (updated.doctorId) fetchAvailableSlots(updated.doctorId, value);
+    }
+    setFormData(updated);
+  };
 
   const handleDelete = async (id) => {
     try { await axios.delete(`/appointments/${id}`); fetchAppointments(); }
@@ -72,8 +112,10 @@ const PatientDashboard = () => {
     try {
       await axios.post('/appointments', formData);
       setSuccess('Appointment booked successfully!');
-      setFormData({ doctorId: '', date: '', reason: '' });
+      setFormData({ doctorId: '', date: '', reason: '', appointmentTime: '' });
       setSelectedDepartment('');
+      setAvailableSlots([]);
+      setDoctorSchedule(null);
       fetchAppointments();
       setActiveTab('appointments');
     } catch (err) {
@@ -446,6 +488,52 @@ const PatientDashboard = () => {
                   <label style={labelStyle}>Date</label>
                   <input type="date" name="date" style={inputStyle} value={formData.date} onChange={handleChange} min={new Date().toISOString().split('T')[0]} required />
                 </div>
+
+                {/* Doctor Schedule Info */}
+                {formData.doctorId && doctorSchedule && (
+                  <div style={{ background: '#f0f9ff', borderRadius: '10px', padding: '12px 14px', marginBottom: '16px', border: '1px solid #bae6fd', fontSize: '13px', color: '#0369a1' }}>
+                    <strong>⏰ Schedule:</strong> {doctorSchedule.workingDays.map(d => d.slice(0,3)).join(', ')} &bull; {doctorSchedule.startTime}–{doctorSchedule.endTime} &bull; {doctorSchedule.slotDurationMinutes}-min slots
+                  </div>
+                )}
+
+                {/* Time Slot Picker */}
+                {formData.doctorId && formData.date && (
+                  <div style={{ marginBottom: '16px' }}>
+                    <label style={labelStyle}>Select Time Slot <span style={{ color: '#94a3b8', fontWeight: 400, fontSize: '11px' }}>(optional — if doctor has schedule)</span></label>
+                    {loadingSlots ? (
+                      <div style={{ color: '#94a3b8', fontSize: '13px', marginTop: '8px' }}>Loading available slots...</div>
+                    ) : availableSlots.length === 0 ? (
+                      <div style={{ color: '#94a3b8', fontSize: '13px', marginTop: '8px', background: '#f8fafc', borderRadius: '8px', padding: '12px', border: '1.5px solid #e2e8f0' }}>
+                        {doctorSchedule ? 'No slots available on this date (day off or fully booked).' : 'Doctor has not set a schedule yet. You can still book with date only.'}
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>
+                        {availableSlots.map(slot => {
+                          const [h, m] = slot.split(':').map(Number);
+                          const ampm = h >= 12 ? 'PM' : 'AM';
+                          const hour12 = h % 12 || 12;
+                          const label = `${hour12}:${m.toString().padStart(2,'0')} ${ampm}`;
+                          const selected = formData.appointmentTime === slot;
+                          return (
+                            <button
+                              key={slot} type="button"
+                              onClick={() => setFormData(prev => ({ ...prev, appointmentTime: slot }))}
+                              style={{
+                                padding: '8px 16px', borderRadius: '20px', border: 'none', cursor: 'pointer',
+                                fontSize: '13px', fontWeight: 600, transition: 'all 0.2s',
+                                background: selected ? 'linear-gradient(135deg, #3b82f6, #1d4ed8)' : '#f1f5f9',
+                                color: selected ? 'white' : '#374151',
+                                boxShadow: selected ? '0 2px 8px rgba(59,130,246,0.4)' : 'none',
+                              }}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div style={{ marginBottom: '20px' }}>
                   <label style={labelStyle}>Reason for Visit</label>
                   <textarea name="reason" style={{ ...inputStyle, resize: 'vertical', minHeight: '90px' }} placeholder="Describe your symptoms..." value={formData.reason} onChange={handleChange} rows={3} required />

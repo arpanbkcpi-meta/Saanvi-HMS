@@ -23,6 +23,7 @@ app.use('/api/labs', require('./src/routes/labRoutes'));
 app.use('/uploads', express.static('uploads'));
 app.use('/api/users', require('./src/routes/userRoutes'));
 app.use('/api/medical-histories', require('./src/routes/medicalHistoryRoutes'));
+app.use('/api/doctor-schedule', require('./src/routes/doctorScheduleRoutes'));
 
 // Health check
 app.get('/api/health', (req, res) => {
