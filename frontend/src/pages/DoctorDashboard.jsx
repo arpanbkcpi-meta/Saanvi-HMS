@@ -21,6 +21,7 @@ const DoctorDashboard = () => {
   const [notes, setNotes] = useState('');
   const [labForm, setLabForm] = useState({ testName: '', notes: '', file: null });
   const [activeTab, setActiveTab] = useState('overview');
+  const [expandedReason, setExpandedReason] = useState(null);
 
   // ── Schedule state ────────────────────────────────────────────
   const [schedule, setSchedule] = useState(null);
@@ -452,7 +453,34 @@ const DoctorDashboard = () => {
                           <div style={{ fontWeight: 600 }}>{apt.patientId?.name}</div>
                         </td>
                         <td style={tdStyle}>{new Date(apt.date).toLocaleDateString()}</td>
-                        <td style={{ ...tdStyle, maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{apt.reason}</td>
+<td style={{ ...tdStyle, maxWidth: '220px' }}>
+  <div
+    onClick={() => setExpandedReason(expandedReason === apt._id ? null : apt._id)}
+    style={{
+      cursor: 'pointer',
+      lineHeight: '1.4',
+      ...(expandedReason === apt._id
+        ? {}
+        : {
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden'
+          }
+      )
+    }}
+  >
+    {apt.reason}
+  </div>
+  {apt.reason && apt.reason.length > 60 && (
+    <span
+      onClick={() => setExpandedReason(expandedReason === apt._id ? null : apt._id)}
+      style={{ color: '#3b82f6', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+    >
+      {expandedReason === apt._id ? 'Show less' : 'Show more'}
+    </span>
+  )}
+</td>
                         <td style={tdStyle}><span style={badgeStyle(apt.status)}>{apt.status}</span></td>
                         <td style={tdStyle}>
                           <div style={{ display: 'flex', gap: '8px' }}>

@@ -1,15 +1,21 @@
+const User = require('../models/User');
+const sendEmail = require('../utils/sendEmail');
+const { prescriptionTemplate } = require('../utils/emailTemplates');
 const Prescription = require('../models/Prescription');
 
 const createPrescription = async (req, res) => {
   try {
     const { appointmentId, patientId, medicines, notes } = req.body;
-
     const prescription = await Prescription.create({
-      appointmentId,
-      doctorId: req.user._id,
-      patientId,
-      medicines,
-      notes
+      appointmentId, doctorId: req.user._id, patientId, medicines, notes
+    });
+
+    // req.user IS the doctor (set by protect middleware) — fetch the patient for their email
+    const patient = await User.findById(patientId);
+    sendEmail({
+      to: patient.email,
+      subject: 'New Prescription — Saanvi HMS',
+      html: prescriptionTemplate(patient.name, req.user.name, medicines)
     });
 
     res.status(201).json(prescription);

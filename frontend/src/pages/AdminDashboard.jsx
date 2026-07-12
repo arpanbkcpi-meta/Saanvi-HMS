@@ -1,37 +1,71 @@
 import { useState, useEffect } from 'react';
-import { FaUserMd, FaUsers, FaTrash, FaSort, FaPlus, FaUserShield, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaUserMd, FaUsers, FaTrash, FaSort, FaPlus, FaUserShield, FaChevronLeft, FaChevronRight, FaCalendarCheck, FaSearch } from 'react-icons/fa';
 import Navbar from '../components/Navbar';
 import axios from '../utils/axios';
 import { useNavigate } from 'react-router-dom';
 
+// ============================================================
+// ADMIN DASHBOARD
+// Handles: Doctor/Patient management (CRUD), system-wide
+// appointment oversight (search/sort/pagination), and quick
+// navigation to a patient's Medical History (EMR).
+// ============================================================
 const AdminDashboard = () => {
   const navigate = useNavigate();
+
+  // ── Core data lists (fetched once on load via fetchData) ──
   const [doctors, setDoctors] = useState([]);
   const [patients, setPatients] = useState([]);
+  const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // ── Doctors tab: sort + pagination state ──
   const [doctorSort, setDoctorSort] = useState('asc');
-  const [patientSort, setPatientSort] = useState('asc');
   const [doctorPage, setDoctorPage] = useState(1);
+
+  // ── Patients tab: sort + pagination state ──
+  const [patientSort, setPatientSort] = useState('asc');
   const [patientPage, setPatientPage] = useState(1);
+
+  // ── Appointments tab: search + status filter + sort + pagination ──
+  const [appointmentSearch, setAppointmentSearch] = useState('');
+  const [appointmentSort, setAppointmentSort] = useState('date-desc');
+  const [appointmentPage, setAppointmentPage] = useState(1);
+  const [appointmentStatusFilter, setAppointmentStatusFilter] = useState('all');
+
+  // ── Modal visibility toggles ──
   const [showAddDoctor, setShowAddDoctor] = useState(false);
   const [showAddPatient, setShowAddPatient] = useState(false);
+
+  // ── Which top-level tab is currently active ──
   const [activeTab, setActiveTab] = useState('overview');
+
+  // ── Add Doctor / Add Patient form data ──
   const [doctorForm, setDoctorForm] = useState({ name: '', email: '', password: '', specialization: '', experience: '', phone: '' });
   const [patientForm, setPatientForm] = useState({ name: '', email: '', password: '', age: '', gender: 'male', phone: '' });
+
+  // ── Alert banners ──
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const itemsPerPage = 5;
 
+  const itemsPerPage = 5; // shared page size for all 3 paginated tables
+
+  // Fetch everything once, when the dashboard first mounts
   useEffect(() => { fetchData(); }, []);
 
+  // Loads doctors, patients, AND all appointments (admin-only endpoint)
+  // in parallel via Promise.all — faster than awaiting them one by one,
+  // since none of these three requests depend on each other's result.
   const fetchData = async () => {
     try {
-      const [docsRes, patientsRes] = await Promise.all([
+      const [docsRes, patientsRes, appointmentsRes] = await Promise.all([
         axios.get('/users/doctors'),
-        axios.get('/users/patients')
+        axios.get('/users/patients'),
+        axios.get('/appointments') // admin-only: returns EVERY appointment in the system
       ]);
       setDoctors(docsRes.data);
       setPatients(patientsRes.data);
+      setAppointments(appointmentsRes.data);
     } catch (error) {
       console.error(error);
     } finally {
@@ -39,17 +73,19 @@ const AdminDashboard = () => {
     }
   };
 
+  // Admin creates a new doctor account directly (no self-registration)
   const handleAddDoctor = async (e) => {
     e.preventDefault(); setError(''); setSuccess('');
     try {
       const { data } = await axios.post('/users/doctor', doctorForm);
-      setDoctors([...doctors, data]);
+      setDoctors([...doctors, data]); // append the new doctor without a full re-fetch
       setDoctorForm({ name: '', email: '', password: '', specialization: '', experience: '', phone: '' });
       setShowAddDoctor(false);
       setSuccess('Doctor added successfully!');
     } catch (err) { setError(err.response?.data?.message || 'Failed to add doctor'); }
   };
 
+  // Admin creates a new patient account directly
   const handleAddPatient = async (e) => {
     e.preventDefault(); setError(''); setSuccess('');
     try {
@@ -75,6 +111,9 @@ const AdminDashboard = () => {
     }
   };
 
+  // ============================================================
+  // DOCTORS: sort (A-Z / Z-A) then slice into the current page
+  // ============================================================
   const sortedDoctors = [...doctors].sort((a, b) =>
     doctorSort === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name)
   );
@@ -82,12 +121,49 @@ const AdminDashboard = () => {
   const paginatedDoctors = sortedDoctors.slice(doctorStartIdx, doctorStartIdx + itemsPerPage);
   const doctorPages = Math.ceil(sortedDoctors.length / itemsPerPage);
 
+  // ============================================================
+  // PATIENTS: sort (A-Z / Z-A) then slice into the current page
+  // ============================================================
   const sortedPatients = [...patients].sort((a, b) =>
     patientSort === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name)
   );
   const patientStartIdx = (patientPage - 1) * itemsPerPage;
   const paginatedPatients = sortedPatients.slice(patientStartIdx, patientStartIdx + itemsPerPage);
   const patientPages = Math.ceil(sortedPatients.length / itemsPerPage);
+
+  // ============================================================
+  // APPOINTMENTS: filter (search text + status) → sort → paginate
+  // ============================================================
+
+  // Step 1: keep only appointments matching BOTH the free-text search
+  // AND the selected status filter. Search checks patient name, doctor
+  // name, and reason — case-insensitively.
+  const filteredAppointments = appointments.filter(apt => {
+    const matchesSearch = appointmentSearch === '' ||
+      apt.patientId?.name?.toLowerCase().includes(appointmentSearch.toLowerCase()) ||
+      apt.doctorId?.name?.toLowerCase().includes(appointmentSearch.toLowerCase()) ||
+      apt.reason?.toLowerCase().includes(appointmentSearch.toLowerCase());
+
+    const matchesStatus = appointmentStatusFilter === 'all' || apt.status === appointmentStatusFilter;
+
+    return matchesSearch && matchesStatus;
+  });
+
+  // Step 2: sort the filtered results based on the selected dropdown option
+  const sortedAppointments = [...filteredAppointments].sort((a, b) => {
+    switch (appointmentSort) {
+      case 'date-desc': return new Date(b.date) - new Date(a.date);   // newest first
+      case 'date-asc': return new Date(a.date) - new Date(b.date);    // oldest first
+      case 'patient-asc': return (a.patientId?.name || '').localeCompare(b.patientId?.name || '');
+      case 'patient-desc': return (b.patientId?.name || '').localeCompare(a.patientId?.name || '');
+      default: return 0;
+    }
+  });
+
+  // Step 3: slice out just the current page's worth of results
+  const appointmentStartIdx = (appointmentPage - 1) * itemsPerPage;
+  const paginatedAppointments = sortedAppointments.slice(appointmentStartIdx, appointmentStartIdx + itemsPerPage);
+  const appointmentPages = Math.ceil(sortedAppointments.length / itemsPerPage);
 
   // ── Styles ──────────────────────────────────────────────────
   const pageStyle = {
@@ -201,6 +277,9 @@ const AdminDashboard = () => {
     display: 'flex', alignItems: 'center', gap: '4px',
   });
 
+  // Reusable modal shell used by both "Add Doctor" and "Add Patient" forms —
+  // takes the form fields as `children`, handles the overlay/close/submit
+  // button chrome once instead of repeating it for each modal.
   const FormModal = ({ title, onClose, onSubmit, children, btnLabel, btnColor }) => (
     <div style={overlayStyle}>
       <div style={modalStyle}>
@@ -245,7 +324,7 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* Stat Cards */}
+        {/* Stat Cards — quick totals for all 4 tracked entities */}
         <div style={{ display: 'flex', gap: '16px', marginBottom: '28px', flexWrap: 'wrap' }}>
           <div style={statCardStyle('linear-gradient(135deg, #3b82f6, #1d4ed8)', '0 4px 16px rgba(59,130,246,0.3)')}>
             <div style={iconBoxStyle}><FaUserMd /></div>
@@ -268,14 +347,22 @@ const AdminDashboard = () => {
               <div style={{ color: 'white', fontSize: '28px', fontWeight: 700 }}>{doctors.length + patients.length}</div>
             </div>
           </div>
+          <div style={statCardStyle('linear-gradient(135deg, #f59e0b, #d97706)', '0 4px 16px rgba(245,158,11,0.3)')}>
+            <div style={iconBoxStyle}><FaCalendarCheck /></div>
+            <div>
+              <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px' }}>Total Appointments</div>
+              <div style={{ color: 'white', fontSize: '28px', fontWeight: 700 }}>{appointments.length}</div>
+            </div>
+          </div>
         </div>
 
-        {/* Tabs */}
+        {/* Tab Switcher */}
         <div style={{ ...cardStyle, padding: '8px', marginBottom: '24px', display: 'inline-flex', gap: '4px' }}>
           {[
             { key: 'overview', label: '📊 Overview' },
             { key: 'doctors', label: '👨‍⚕️ Doctors' },
             { key: 'patients', label: '👥 Patients' },
+            { key: 'appointments', label: '📅 Appointments' },
           ].map(tab => (
             <button key={tab.key} style={tabStyle(activeTab === tab.key)} onClick={() => setActiveTab(tab.key)}>
               {tab.label}
@@ -283,7 +370,10 @@ const AdminDashboard = () => {
           ))}
         </div>
 
-        {/* Overview Tab */}
+        {/* ============================================================
+            OVERVIEW TAB — quick glance at the 5 most recent doctors
+            and patients, with "View All" shortcuts into their full tabs
+           ============================================================ */}
         {activeTab === 'overview' && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
             {/* Recent Doctors */}
@@ -326,7 +416,9 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* Doctors Tab */}
+        {/* ============================================================
+            DOCTORS TAB — full list, sortable A↔Z, paginated 5/page
+           ============================================================ */}
         {activeTab === 'doctors' && (
           <div style={cardStyle}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
@@ -415,7 +507,10 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* Patients Tab */}
+        {/* ============================================================
+            PATIENTS TAB — full list, sortable A↔Z, paginated 5/page,
+            plus a quick shortcut into that patient's Medical History (EMR)
+           ============================================================ */}
         {activeTab === 'patients' && (
           <div style={cardStyle}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
@@ -469,6 +564,7 @@ const AdminDashboard = () => {
                           <td style={{ ...tdStyle, color: '#64748b' }}>{pat.phone || '-'}</td>
                           <td style={tdStyle}>
                             <div style={{ display: 'flex', gap: '8px' }}>
+                              {/* Jumps to the Medical History page, passing this patient's ID via route state */}
                               <button onClick={() => navigate('/medical-history', { state: { patientId: pat._id } })} style={{ background: '#e0f2fe', color: '#0369a1', border: 'none', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 ❤️ EMR
                               </button>
@@ -499,6 +595,126 @@ const AdminDashboard = () => {
                         </button>
                       ))}
                       <button style={paginationBtnStyle(patientPage === patientPages)} onClick={() => setPatientPage(p => Math.min(patientPages, p + 1))} disabled={patientPage === patientPages}>
+                        Next <FaChevronRight size={11} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ============================================================
+            APPOINTMENTS TAB — system-wide view (all patients/doctors),
+            with live search, status filter, sort dropdown, and pagination
+           ============================================================ */}
+        {activeTab === 'appointments' && (
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+              <h6 style={{ fontWeight: 700, color: '#0f172a', fontSize: '16px', margin: 0 }}>
+                📅 All Appointments ({sortedAppointments.length})
+              </h6>
+
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                {/* Live search box — filters as you type, resets to page 1 on each keystroke */}
+                <div style={{ position: 'relative' }}>
+                  <FaSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontSize: '13px' }} />
+                  <input
+                    type="text"
+                    placeholder="Search patient, doctor, reason..."
+                    value={appointmentSearch}
+                    onChange={(e) => { setAppointmentSearch(e.target.value); setAppointmentPage(1); }}
+                    style={{ padding: '8px 12px 8px 34px', borderRadius: '10px', border: '1.5px solid #e2e8f0', fontSize: '13px', outline: 'none', width: '220px' }}
+                  />
+                </div>
+
+                {/* Status filter — All / Pending / Approved / Rejected */}
+                <select
+                  value={appointmentStatusFilter}
+                  onChange={(e) => { setAppointmentStatusFilter(e.target.value); setAppointmentPage(1); }}
+                  style={{ padding: '8px 12px', borderRadius: '10px', border: '1.5px solid #e2e8f0', fontSize: '13px', outline: 'none' }}
+                >
+                  <option value="all">All Status</option>
+                  <option value="pending">Pending</option>
+                  <option value="approved">Approved</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+
+                {/* Sort dropdown — by date (newest/oldest) or patient name (A-Z/Z-A) */}
+                <select
+                  value={appointmentSort}
+                  onChange={(e) => setAppointmentSort(e.target.value)}
+                  style={{ padding: '8px 12px', borderRadius: '10px', border: '1.5px solid #e2e8f0', fontSize: '13px', outline: 'none' }}
+                >
+                  <option value="date-desc">Newest First</option>
+                  <option value="date-asc">Oldest First</option>
+                  <option value="patient-asc">Patient A→Z</option>
+                  <option value="patient-desc">Patient Z→A</option>
+                </select>
+              </div>
+            </div>
+
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>Loading...</div>
+            ) : sortedAppointments.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
+                <FaCalendarCheck style={{ fontSize: '40px', marginBottom: '12px', opacity: 0.3 }} />
+                <p>No appointments found</p>
+              </div>
+            ) : (
+              <>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr>{['Patient', 'Doctor', 'Date', 'Reason', 'Status'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr>
+                    </thead>
+                    <tbody>
+                      {paginatedAppointments.map(apt => (
+                        <tr key={apt._id}
+                          onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                          <td style={tdStyle}>
+                            <div style={{ fontWeight: 600 }}>{apt.patientId?.name || 'Unknown'}</div>
+                            <div style={{ color: '#64748b', fontSize: '12px' }}>{apt.patientId?.email}</div>
+                          </td>
+                          <td style={tdStyle}>
+                            <div style={{ fontWeight: 600 }}>Dr. {apt.doctorId?.name || 'Unknown'}</div>
+                            <div style={{ color: '#64748b', fontSize: '12px' }}>{apt.doctorId?.specialization}</div>
+                          </td>
+                          <td style={tdStyle}>{new Date(apt.date).toLocaleDateString()}</td>
+                          <td style={{ ...tdStyle, maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{apt.reason}</td>
+                          <td style={tdStyle}>
+                            <span style={{
+                              background: apt.status === 'approved' ? '#dcfce7' : apt.status === 'rejected' ? '#fee2e2' : '#fef9c3',
+                              color: apt.status === 'approved' ? '#16a34a' : apt.status === 'rejected' ? '#dc2626' : '#ca8a04',
+                              padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 600
+                            }}>
+                              {apt.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination */}
+                {appointmentPages > 1 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px' }}>
+                    <span style={{ color: '#64748b', fontSize: '13px' }}>
+                      Showing {appointmentStartIdx + 1}–{Math.min(appointmentStartIdx + itemsPerPage, sortedAppointments.length)} of {sortedAppointments.length}
+                    </span>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <button style={paginationBtnStyle(appointmentPage === 1)} onClick={() => setAppointmentPage(p => Math.max(1, p - 1))} disabled={appointmentPage === 1}>
+                        <FaChevronLeft size={11} /> Prev
+                      </button>
+                      {Array.from({ length: appointmentPages }, (_, i) => i + 1).map(pg => (
+                        <button key={pg} onClick={() => setAppointmentPage(pg)} style={{ background: appointmentPage === pg ? '#f59e0b' : 'white', color: appointmentPage === pg ? 'white' : '#374151', border: '1.5px solid', borderColor: appointmentPage === pg ? '#f59e0b' : '#e2e8f0', borderRadius: '8px', width: '32px', height: '32px', cursor: 'pointer', fontSize: '13px', fontWeight: appointmentPage === pg ? 600 : 400 }}>
+                          {pg}
+                        </button>
+                      ))}
+                      <button style={paginationBtnStyle(appointmentPage === appointmentPages)} onClick={() => setAppointmentPage(p => Math.min(appointmentPages, p + 1))} disabled={appointmentPage === appointmentPages}>
                         Next <FaChevronRight size={11} />
                       </button>
                     </div>
