@@ -1,3 +1,4 @@
+import { toast } from 'react-toastify';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -29,11 +30,14 @@ const Register = () => {
     try {
       const { data } = await axios.post('/auth/register', formData);
       login(data);
+      toast.success(`Welcome, ${data.name}! Your account is ready.`);
       if (data.role === 'doctor') navigate('/doctor-dashboard');
       else if (data.role === 'patient') navigate('/patient-dashboard');
       else navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+      const message = err.response?.data?.message || 'Registration failed. Please try again.';
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }

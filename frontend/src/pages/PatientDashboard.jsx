@@ -1,3 +1,4 @@
+import { toast } from 'react-toastify';
 import { useState, useEffect } from 'react';
 import { FaCalendarPlus, FaCalendarCheck, FaClock, FaTimesCircle, FaPills, FaFileDownload, FaCheckCircle, FaHeartbeat } from 'react-icons/fa';
 import Navbar from '../components/Navbar';
@@ -102,26 +103,35 @@ const PatientDashboard = () => {
   };
 
   const handleDelete = async (id) => {
-    try { await axios.delete(`/appointments/${id}`); fetchAppointments(); }
-    catch (error) { console.error(error); }
-  };
+  try {
+    await axios.delete(`/appointments/${id}`);
+    toast.success('Appointment cancelled');
+    fetchAppointments();
+  } catch (error) {
+    console.error(error);
+    toast.error('Failed to cancel appointment');
+  }
+};
 
-  const handleBooking = async (e) => {
-    e.preventDefault();
-    setError(''); setSuccess('');
-    try {
-      await axios.post('/appointments', formData);
-      setSuccess('Appointment booked successfully!');
-      setFormData({ doctorId: '', date: '', reason: '', appointmentTime: '' });
-      setSelectedDepartment('');
-      setAvailableSlots([]);
-      setDoctorSchedule(null);
-      fetchAppointments();
-      setActiveTab('appointments');
-    } catch (err) {
-      setError(err.response?.data?.message || 'Booking failed');
-    }
-  };
+ const handleBooking = async (e) => {
+  e.preventDefault();
+  setError(''); setSuccess('');
+  try {
+    await axios.post('/appointments', formData);
+    setSuccess('Appointment booked successfully!');
+    toast.success('Appointment booked successfully!');
+    setFormData({ doctorId: '', date: '', reason: '', appointmentTime: '' });
+    setSelectedDepartment('');
+    setAvailableSlots([]);
+    setDoctorSchedule(null);
+    fetchAppointments();
+    setActiveTab('appointments');
+  } catch (err) {
+    const message = err.response?.data?.message || 'Booking failed';
+    setError(message);
+    toast.error(message);
+  }
+};
 
   const handleFollowUp = (apt) => {
     setSelectedDepartment(apt.doctorId?.specialization);
@@ -282,8 +292,8 @@ const PatientDashboard = () => {
               <FaCalendarCheck />
             </div>
             <div>
-              <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px' }}>Total Appointments</div>
-              <div style={{ color: 'white', fontSize: '28px', fontWeight: 700 }}>{totalApts}</div>
+             <div style={{ color: 'rgba(255,255,255,0.95)', fontSize: '13px', fontWeight: 600, letterSpacing: '0.3px' }}>Total Appointments</div>
+             <div style={{ color: 'white', fontSize: '32px', fontWeight: 800, lineHeight: 1.1, marginTop: '2px' }}>{totalApts}</div>
             </div>
           </div>
 
@@ -292,8 +302,8 @@ const PatientDashboard = () => {
               <FaClock />
             </div>
             <div>
-              <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px' }}>Pending</div>
-              <div style={{ color: 'white', fontSize: '28px', fontWeight: 700 }}>{pendingApts}</div>
+              <div style={{ color: 'rgba(255,255,255,0.95)', fontSize: '13px' ,fontWeight: 600,letterSpacing:'0.3px'}}>Pending</div>
+              <div style={{ color: 'white', fontSize: '32px', fontWeight: 800, lineHeight: 1.1, marginTop: '2px' }}>{pendingApts}</div>
             </div>
           </div>
 
@@ -302,8 +312,8 @@ const PatientDashboard = () => {
               <FaCheckCircle />
             </div>
             <div>
-              <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px' }}>Approved</div>
-              <div style={{ color: 'white', fontSize: '28px', fontWeight: 700 }}>{approvedApts}</div>
+              <div style={{ color: 'rgba(255,255,255,0.95)', fontSize: '13px',fontWeight: 600 ,letterSpacing:'0.3px' }}>Approved</div>
+              <div style={{ color: 'white', fontSize: '32px', fontWeight: 800, lineHeight: 1.1, marginTop: '2px' }}>{approvedApts}</div>
             </div>
           </div>
 
@@ -312,8 +322,8 @@ const PatientDashboard = () => {
               <FaTimesCircle />
             </div>
             <div>
-              <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px' }}>Rejected</div>
-              <div style={{ color: 'white', fontSize: '28px', fontWeight: 700 }}>{rejectedApts}</div>
+              <div style={{ color: 'rgba(255,255,255,0.95)', fontSize: '13px',fontWeight: 600 ,letterSpacing:'0.3px' }}>Rejected</div>
+              <div style={{ color: 'white', fontSize: '32px', fontWeight: 800, lineHeight: 1.1, marginTop: '2px' }}>{rejectedApts}</div>
             </div>
           </div>
         </div>

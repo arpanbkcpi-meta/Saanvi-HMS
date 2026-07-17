@@ -209,7 +209,7 @@ const Navbar = () => {
       </div>
 
       {/* Main content offset */}
-      <div style={{ marginLeft: '250px' }} />
+     
     </>
   );
 };

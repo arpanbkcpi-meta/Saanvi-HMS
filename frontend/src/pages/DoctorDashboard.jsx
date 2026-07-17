@@ -1,3 +1,4 @@
+import { toast } from 'react-toastify';
 import { useState, useEffect } from 'react';
 import { FaUserMd, FaCalendarCheck, FaClock, FaCheckCircle, FaPills, FaFileUpload, FaTimesCircle, FaCalendarAlt, FaPlus, FaTrash } from 'react-icons/fa';
 import Navbar from '../components/Navbar';
@@ -8,7 +9,7 @@ import { useNavigate } from 'react-router-dom';
 const DoctorDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [appointments, setAppointments] = useState([]);
+  const [appointments, setAppointments] = useState([]);//The react is going to redraw the screen , this is the logic
   const [prescriptions, setPrescriptions] = useState([]);
   const [labs, setLabs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -76,18 +77,21 @@ const DoctorDashboard = () => {
   };
 
   const handleSaveSchedule = async (e) => {
-    e.preventDefault();
-    setScheduleSaved(false);
-    setScheduleError('');
-    try {
-      await axios.post('/doctor-schedule', scheduleForm);
-      setScheduleSaved(true);
-      fetchSchedule();
-      setTimeout(() => setScheduleSaved(false), 3000);
-    } catch (err) {
-      setScheduleError(err.response?.data?.message || 'Failed to save schedule');
-    }
-  };
+  e.preventDefault();
+  setScheduleSaved(false);
+  setScheduleError('');
+  try {
+    await axios.post('/doctor-schedule', scheduleForm);
+    setScheduleSaved(true);
+    toast.success('Schedule saved successfully!');
+    fetchSchedule();
+    setTimeout(() => setScheduleSaved(false), 3000);
+  } catch (err) {
+    const message = err.response?.data?.message || 'Failed to save schedule';
+    setScheduleError(message);
+    toast.error(message);
+  }
+};
 
   const toggleWorkingDay = (day) => {
     setScheduleForm(prev => ({
@@ -135,9 +139,15 @@ const DoctorDashboard = () => {
   };
 
   const handleStatus = async (id, status) => {
-    try { await axios.put(`/appointments/${id}/status`, { status }); fetchAppointments(); }
-    catch (e) { console.error(e); }
-  };
+  try {
+    await axios.put(`/appointments/${id}/status`, { status });
+    toast.success(`Appointment ${status}`);
+    fetchAppointments();
+  } catch (e) {
+    console.error(e);
+    toast.error('Failed to update appointment');
+  }
+};
 
   const handleMedicineChange = (index, field, value) => {
     const newList = [...medicineList];
@@ -146,37 +156,44 @@ const DoctorDashboard = () => {
   };
 
   const handlePrescribe = async (e) => {
-    e.preventDefault();
-    try {
-      await axios.post('/prescriptions', {
-        appointmentId: selectedAppointment._id,
-        patientId: selectedAppointment.patientId._id,
-        medicines: medicineList.filter(m => m.name),
-        notes
-      });
-      fetchAppointments(); fetchPrescriptions();
-      setShowPrescribeForm(false);
-      setMedicineList([{ name: '', dosage: '', frequency: '', duration: '' }]);
-      setNotes(''); setSelectedAppointment(null);
-    } catch (e) { console.error(e); }
-  };
-
+  e.preventDefault();
+  try {
+    await axios.post('/prescriptions', {
+      appointmentId: selectedAppointment._id,
+      patientId: selectedAppointment.patientId._id,
+      medicines: medicineList.filter(m => m.name),
+      notes
+    });
+    fetchAppointments(); fetchPrescriptions();
+    setShowPrescribeForm(false);
+    setMedicineList([{ name: '', dosage: '', frequency: '', duration: '' }]);
+    setNotes(''); setSelectedAppointment(null);
+    toast.success('Prescription created successfully');
+  } catch (e) {
+    console.error(e);
+    toast.error('Failed to create prescription');
+  }
+};
   const handleUploadLab = async (e) => {
-    e.preventDefault();
-    const formData = new FormData();
-    formData.append('appointmentId', selectedLabAppointment._id);
-    formData.append('patientId', selectedLabAppointment.patientId._id);
-    formData.append('testName', labForm.testName);
-    formData.append('notes', labForm.notes);
-    formData.append('file', labForm.file);
-    try {
-      await axios.post('/labs', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      fetchAppointments(); fetchLabs();
-      setShowLabForm(false);
-      setLabForm({ testName: '', notes: '', file: null });
-      setSelectedLabAppointment(null);
-    } catch (e) { console.error(e); }
-  };
+  e.preventDefault();
+  const formData = new FormData();
+  formData.append('appointmentId', selectedLabAppointment._id);
+  formData.append('patientId', selectedLabAppointment.patientId._id);
+  formData.append('testName', labForm.testName);
+  formData.append('notes', labForm.notes);
+  formData.append('file', labForm.file);
+  try {
+    await axios.post('/labs', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+    fetchAppointments(); fetchLabs();
+    setShowLabForm(false);
+    setLabForm({ testName: '', notes: '', file: null });
+    setSelectedLabAppointment(null);
+    toast.success('Lab report uploaded successfully');
+  } catch (e) {
+    console.error(e);
+    toast.error('Failed to upload lab report');
+  }
+};
 
   const filteredAppointments = appointmentFilter === 'all'
     ? appointments
@@ -323,43 +340,43 @@ const DoctorDashboard = () => {
           <div style={statCardStyle('linear-gradient(135deg, #3b82f6, #1d4ed8)', '0 4px 16px rgba(59,130,246,0.3)')}>
             <div style={iconBoxStyle}><FaCalendarCheck /></div>
             <div>
-              <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px' }}>Total</div>
-              <div style={{ color: 'white', fontSize: '28px', fontWeight: 700 }}>{totalApts}</div>
+              <div style={{ color: 'rgba(255,255,255,0.95)', fontSize: '13px',fontWeight:600, letterSpacing:'0.3px' }}>Total</div>
+              <div style={{ color: 'white', fontSize: '32px', fontWeight: 800 ,lineHeight:1.1, marginTop:'2px'}}>{totalApts}</div>
             </div>
           </div>
           <div style={statCardStyle('linear-gradient(135deg, #f59e0b, #d97706)', '0 4px 16px rgba(245,158,11,0.3)')}>
             <div style={iconBoxStyle}><FaClock /></div>
             <div>
-              <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px' }}>Pending</div>
-              <div style={{ color: 'white', fontSize: '28px', fontWeight: 700 }}>{pendingApts}</div>
+              <div style={{ color: 'rgba(255,255,255,0.95)', fontSize: '13px',fontWeight:600, letterSpacing:'0.3px' }}>Pending</div>
+              <div style={{ color: 'white', fontSize: '32px', fontWeight: 800 ,lineHeight:1.1, marginTop:'2px'}}>{pendingApts}</div>
             </div>
           </div>
           <div style={statCardStyle('linear-gradient(135deg, #10b981, #059669)', '0 4px 16px rgba(16,185,129,0.3)')}>
             <div style={iconBoxStyle}><FaCheckCircle /></div>
             <div>
-              <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px' }}>Approved</div>
-              <div style={{ color: 'white', fontSize: '28px', fontWeight: 700 }}>{approvedApts}</div>
+              <div style={{ color: 'rgba(255,255,255,0.95)', fontSize: '13px' ,fontWeight:600, letterSpacing:'0.3px' }}>Approved</div>
+              <div style={{ color: 'white', fontSize: '32px', fontWeight: 800 ,lineHeight:1.1, marginTop:'2px'}}>{approvedApts}</div>
             </div>
           </div>
           <div style={statCardStyle('linear-gradient(135deg, #ef4444, #dc2626)', '0 4px 16px rgba(239,68,68,0.3)')}>
             <div style={iconBoxStyle}><FaTimesCircle /></div>
             <div>
-              <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px' }}>Rejected</div>
-              <div style={{ color: 'white', fontSize: '28px', fontWeight: 700 }}>{rejectedApts}</div>
+              <div style={{ color: 'rgba(255,255,255,0.95)', fontSize: '13px',fontWeight:600, letterSpacing:'0.3px' }}>Rejected</div>
+              <div style={{ color: 'white', fontSize: '32px', fontWeight: 800 ,lineHeight:1.1, marginTop:'2px'}}>{rejectedApts}</div>
             </div>
           </div>
           <div style={statCardStyle('linear-gradient(135deg, #8b5cf6, #7c3aed)', '0 4px 16px rgba(139,92,246,0.3)')}>
             <div style={iconBoxStyle}><FaPills /></div>
             <div>
-              <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px' }}>Prescriptions</div>
-              <div style={{ color: 'white', fontSize: '28px', fontWeight: 700 }}>{prescriptions.length}</div>
+              <div style={{ color: 'rgba(255,255,255,0.95)', fontSize: '13px',fontWeight:600, letterSpacing:'0.3px' }}>Prescriptions</div>
+              <div style={{ color: 'white', fontSize: '32px', fontWeight: 800 ,lineHeight:1.1, marginTop:'2px'}}>{prescriptions.length}</div>
             </div>
           </div>
           <div style={statCardStyle('linear-gradient(135deg, #06b6d4, #0891b2)', '0 4px 16px rgba(6,182,212,0.3)')}>
             <div style={iconBoxStyle}><FaFileUpload /></div>
             <div>
-              <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px' }}>Lab Reports</div>
-              <div style={{ color: 'white', fontSize: '28px', fontWeight: 700 }}>{labs.length}</div>
+              <div style={{ color: 'rgba(255,255,255,0.95)', fontSize: '13px',fontWeight:600, letterSpacing:'0.3px' }}>Lab Reports</div>
+              <div style={{ color: 'white', fontSize: '32px', fontWeight: 800 ,lineHeight:1.1, marginTop:'2px'}}>{labs.length}</div>
             </div>
           </div>
         </div>

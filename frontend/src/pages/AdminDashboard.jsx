@@ -1,3 +1,4 @@
+import { toast } from 'react-toastify';
 import { useState, useEffect } from 'react';
 import { FaUserMd, FaUsers, FaTrash, FaSort, FaPlus, FaUserShield, FaChevronLeft, FaChevronRight, FaCalendarCheck, FaSearch } from 'react-icons/fa';
 import Navbar from '../components/Navbar';
@@ -44,7 +45,7 @@ const AdminDashboard = () => {
   const [doctorForm, setDoctorForm] = useState({ name: '', email: '', password: '', specialization: '', experience: '', phone: '' });
   const [patientForm, setPatientForm] = useState({ name: '', email: '', password: '', age: '', gender: 'male', phone: '' });
 
-  // ── Alert banners ──
+  // ── Alert banners (kept for backward compatibility; toasts now handle most feedback) ──
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -82,7 +83,12 @@ const AdminDashboard = () => {
       setDoctorForm({ name: '', email: '', password: '', specialization: '', experience: '', phone: '' });
       setShowAddDoctor(false);
       setSuccess('Doctor added successfully!');
-    } catch (err) { setError(err.response?.data?.message || 'Failed to add doctor'); }
+      toast.success('Doctor added successfully!');
+    } catch (err) {
+      const message = err.response?.data?.message || 'Failed to add doctor';
+      setError(message);
+      toast.error(message);
+    }
   };
 
   // Admin creates a new patient account directly
@@ -94,20 +100,37 @@ const AdminDashboard = () => {
       setPatientForm({ name: '', email: '', password: '', age: '', gender: 'male', phone: '' });
       setShowAddPatient(false);
       setSuccess('Patient added successfully!');
-    } catch (err) { setError(err.response?.data?.message || 'Failed to add patient'); }
+      toast.success('Patient added successfully!');
+    } catch (err) {
+      const message = err.response?.data?.message || 'Failed to add patient';
+      setError(message);
+      toast.error(message);
+    }
   };
 
   const handleDeleteDoctor = async (id) => {
     if (window.confirm('Delete this doctor?')) {
-      try { await axios.delete(`/users/${id}`); setDoctors(doctors.filter(d => d._id !== id)); }
-      catch (error) { console.error(error); }
+      try {
+        await axios.delete(`/users/${id}`);
+        setDoctors(doctors.filter(d => d._id !== id));
+        toast.success('Doctor deleted');
+      } catch (error) {
+        console.error(error);
+        toast.error('Failed to delete doctor');
+      }
     }
   };
 
   const handleDeletePatient = async (id) => {
     if (window.confirm('Delete this patient?')) {
-      try { await axios.delete(`/users/${id}`); setPatients(patients.filter(p => p._id !== id)); }
-      catch (error) { console.error(error); }
+      try {
+        await axios.delete(`/users/${id}`);
+        setPatients(patients.filter(p => p._id !== id));
+        toast.success('Patient deleted');
+      } catch (error) {
+        console.error(error);
+        toast.error('Failed to delete patient');
+      }
     }
   };
 
@@ -312,46 +335,34 @@ const AdminDashboard = () => {
           </p>
         </div>
 
-        {/* Alerts */}
-        {error && (
-          <div style={{ background: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: '10px', marginBottom: '16px', fontSize: '14px', fontWeight: 500 }}>
-            ❌ {error}
-          </div>
-        )}
-        {success && (
-          <div style={{ background: '#dcfce7', color: '#16a34a', padding: '12px 16px', borderRadius: '10px', marginBottom: '16px', fontSize: '14px', fontWeight: 500 }}>
-            ✅ {success}
-          </div>
-        )}
-
         {/* Stat Cards — quick totals for all 4 tracked entities */}
         <div style={{ display: 'flex', gap: '16px', marginBottom: '28px', flexWrap: 'wrap' }}>
           <div style={statCardStyle('linear-gradient(135deg, #3b82f6, #1d4ed8)', '0 4px 16px rgba(59,130,246,0.3)')}>
             <div style={iconBoxStyle}><FaUserMd /></div>
             <div>
-              <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px' }}>Total Doctors</div>
-              <div style={{ color: 'white', fontSize: '28px', fontWeight: 700 }}>{doctors.length}</div>
+              <div style={{ color: 'rgba(255,255,255,0.95)', fontSize: '13px', fontWeight: 600, letterSpacing: '0.3px' }}>Total Doctors</div>
+              <div style={{ color: 'white', fontSize: '32px', fontWeight: 800, lineHeight: 1.1, marginTop: '2px' }}>{doctors.length}</div>
             </div>
           </div>
           <div style={statCardStyle('linear-gradient(135deg, #10b981, #059669)', '0 4px 16px rgba(16,185,129,0.3)')}>
             <div style={iconBoxStyle}><FaUsers /></div>
             <div>
-              <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px' }}>Total Patients</div>
-              <div style={{ color: 'white', fontSize: '28px', fontWeight: 700 }}>{patients.length}</div>
+              <div style={{ color: 'rgba(255,255,255,0.95)', fontSize: '13px', fontWeight: 600, letterSpacing: '0.3px' }}>Total Patients</div>
+              <div style={{ color: 'white', fontSize: '32px', fontWeight: 800, lineHeight: 1.1, marginTop: '2px' }}>{patients.length}</div>
             </div>
           </div>
           <div style={statCardStyle('linear-gradient(135deg, #8b5cf6, #7c3aed)', '0 4px 16px rgba(139,92,246,0.3)')}>
             <div style={iconBoxStyle}><FaUserShield /></div>
             <div>
-              <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px' }}>Total Users</div>
-              <div style={{ color: 'white', fontSize: '28px', fontWeight: 700 }}>{doctors.length + patients.length}</div>
+              <div style={{ color: 'rgba(255,255,255,0.95)', fontSize: '13px', fontWeight: 600, letterSpacing: '0.3px' }}>Total Users</div>
+              <div style={{ color: 'white', fontSize: '32px', fontWeight: 800, lineHeight: 1.1, marginTop: '2px' }}>{doctors.length + patients.length}</div>
             </div>
           </div>
           <div style={statCardStyle('linear-gradient(135deg, #f59e0b, #d97706)', '0 4px 16px rgba(245,158,11,0.3)')}>
             <div style={iconBoxStyle}><FaCalendarCheck /></div>
             <div>
-              <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px' }}>Total Appointments</div>
-              <div style={{ color: 'white', fontSize: '28px', fontWeight: 700 }}>{appointments.length}</div>
+              <div style={{ color: 'rgba(255,255,255,0.95)', fontSize: '13px', fontWeight: 600, letterSpacing: '0.3px' }}>Total Appointments</div>
+              <div style={{ color: 'white', fontSize: '32px', fontWeight: 800, lineHeight: 1.1, marginTop: '2px' }}>{appointments.length}</div>
             </div>
           </div>
         </div>
