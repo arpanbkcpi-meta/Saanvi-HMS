@@ -1,4 +1,6 @@
-import {ToastContainer} from 'react-toastify';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -9,6 +11,8 @@ import AdminDashboard from './pages/AdminDashboard';
 import DoctorDashboard from './pages/DoctorDashboard';
 import PatientDashboard from './pages/PatientDashboard';
 import MedicalHistory from './pages/MedicalHistory';
+// ✅ ADD THIS IMPORT
+import LabTechDashboard from './pages/LabTechDashboard';
 
 const PrivateRoute = ({ children, role }) => {
   const { user } = useAuth();
@@ -24,6 +28,9 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
+          
           <Route
             path="/dashboard"
             element={
@@ -45,6 +52,15 @@ function App() {
             element={
               <PrivateRoute role="patient">
                 <PatientDashboard />
+              </PrivateRoute>
+            }
+          />
+          {/* ✅ ADD LABTECH ROUTE - USING 'role' PROP (matches your existing pattern) */}
+          <Route
+            path="/labtech-dashboard"
+            element={
+              <PrivateRoute role="labtech">
+                <LabTechDashboard />
               </PrivateRoute>
             }
           />

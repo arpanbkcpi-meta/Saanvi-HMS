@@ -6,6 +6,45 @@ import axios from '../utils/axios';
 import { useNavigate } from 'react-router-dom';
 
 // ============================================================
+// 🔥 FIXED: FormModal moved OUTSIDE AdminDashboard
+// This prevents React from remounting the modal on every keystroke
+// ============================================================
+
+// ── Styles needed by FormModal ──
+const overlayStyle = {
+  position: 'fixed', top: 0, left: 0,
+  width: '100%', height: '100%',
+  background: 'rgba(0,0,0,0.5)',
+  zIndex: 2000,
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+};
+
+const modalStyle = {
+  background: 'white', borderRadius: '20px',
+  padding: '32px', width: '90%', maxWidth: '500px',
+  maxHeight: '85vh', overflowY: 'auto',
+  boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+};
+
+// ── Reusable Modal Component ──
+const FormModal = ({ title, onClose, onSubmit, children, btnLabel, btnColor }) => (
+  <div style={overlayStyle} onClick={onClose}>
+    <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+        <h5 style={{ fontWeight: 700, color: '#0f172a', margin: 0 }}>{title}</h5>
+        <button onClick={onClose} style={{ background: '#f1f5f9', border: 'none', borderRadius: '8px', width: '32px', height: '32px', cursor: 'pointer', fontSize: '16px', color: '#64748b' }}>✕</button>
+      </div>
+      <form onSubmit={onSubmit}>
+        {children}
+        <button type="submit" style={{ marginTop: '20px', background: btnColor, color: 'white', border: 'none', padding: '12px 24px', borderRadius: '10px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', width: '100%' }}>
+          {btnLabel}
+        </button>
+      </form>
+    </div>
+  </div>
+);
+
+// ============================================================
 // ADMIN DASHBOARD
 // Handles: Doctor/Patient management (CRUD), system-wide
 // appointment oversight (search/sort/pagination), and quick
@@ -19,6 +58,14 @@ const AdminDashboard = () => {
   const [patients, setPatients] = useState([]);
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // ✅ D1: NEW STATE for Lab Tests and Lab Techs
+  const [labTests, setLabTests] = useState([]);
+  const [labTechs, setLabTechs] = useState([]);
+  const [showAddTest, setShowAddTest] = useState(false);
+  const [showAddLabTech, setShowAddLabTech] = useState(false);
+  const [testForm, setTestForm] = useState({ name: '', category: '', price: '', normalRange: '', description: '' });
+  const [labTechForm, setLabTechForm] = useState({ name: '', email: '', password: '', phone: '' });
 
   // ── Doctors tab: sort + pagination state ──
   const [doctorSort, setDoctorSort] = useState('asc');
@@ -54,19 +101,21 @@ const AdminDashboard = () => {
   // Fetch everything once, when the dashboard first mounts
   useEffect(() => { fetchData(); }, []);
 
-  // Loads doctors, patients, AND all appointments (admin-only endpoint)
-  // in parallel via Promise.all — faster than awaiting them one by one,
-  // since none of these three requests depend on each other's result.
+  // ✅ D2: UPDATED fetchData with lab tests and lab techs
   const fetchData = async () => {
     try {
-      const [docsRes, patientsRes, appointmentsRes] = await Promise.all([
+      const [docsRes, patientsRes, appointmentsRes, testsRes, techsRes] = await Promise.all([
         axios.get('/users/doctors'),
         axios.get('/users/patients'),
-        axios.get('/appointments') // admin-only: returns EVERY appointment in the system
+        axios.get('/appointments'), // admin-only: returns EVERY appointment in the system
+        axios.get('/lab-tests/admin'), // ✅ NEW: Get all lab tests (including inactive)
+        axios.get('/users/labtechs'), // ✅ NEW: Get all lab technicians
       ]);
       setDoctors(docsRes.data);
       setPatients(patientsRes.data);
       setAppointments(appointmentsRes.data);
+      setLabTests(testsRes.data); // ✅ NEW
+      setLabTechs(techsRes.data); // ✅ NEW
     } catch (error) {
       console.error(error);
     } finally {
@@ -131,6 +180,54 @@ const AdminDashboard = () => {
         console.error(error);
         toast.error('Failed to delete patient');
       }
+    }
+  };
+
+  // ✅ D3: NEW HANDLERS for Lab Tests and Lab Techs
+  const handleAddTest = async (e) => {
+    e.preventDefault();
+    try {
+      const { data } = await axios.post('/lab-tests', testForm);
+      setLabTests([...labTests, data]);
+      setTestForm({ name: '', category: '', price: '', normalRange: '', description: '' });
+      setShowAddTest(false);
+      toast.success('Lab test added to catalog');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to add test');
+    }
+  };
+
+  // ✅ FIXED: Specific handler for test form inputs
+  const handleTestFormChange = (e) => {
+    const { name, value } = e.target;
+    setTestForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleDeactivateTest = async (id) => {
+    if (window.confirm('Remove this test from the catalog?')) {
+      try {
+        await axios.delete(`/lab-tests/${id}`);
+        setLabTests(labTests.map(t => t._id === id ? { ...t, isActive: false } : t));
+        toast.success('Test removed from catalog');
+      } catch (err) {
+        toast.error('Failed to remove test');
+      }
+    }
+  };
+
+  const handleAddLabTech = async (e) => {
+    e.preventDefault();
+    try {
+      const { data } = await axios.post('/users/labtech', labTechForm);
+      setLabTechs([...labTechs, data]);
+      setLabTechForm({ name: '', email: '', password: '', phone: '' });
+      setShowAddLabTech(false);
+      toast.success('Lab technician added successfully');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to add lab technician');
     }
   };
 
@@ -275,20 +372,7 @@ const AdminDashboard = () => {
     display: 'flex', alignItems: 'center', gap: '6px',
   };
 
-  const overlayStyle = {
-    position: 'fixed', top: 0, left: 0,
-    width: '100%', height: '100%',
-    background: 'rgba(0,0,0,0.5)',
-    zIndex: 2000,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-  };
-
-  const modalStyle = {
-    background: 'white', borderRadius: '20px',
-    padding: '32px', width: '90%', maxWidth: '500px',
-    maxHeight: '85vh', overflowY: 'auto',
-    boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-  };
+  // ❌ DELETED: overlayStyle and modalStyle from here (moved outside)
 
   const paginationBtnStyle = (disabled) => ({
     background: disabled ? '#f1f5f9' : 'white',
@@ -300,25 +384,7 @@ const AdminDashboard = () => {
     display: 'flex', alignItems: 'center', gap: '4px',
   });
 
-  // Reusable modal shell used by both "Add Doctor" and "Add Patient" forms —
-  // takes the form fields as `children`, handles the overlay/close/submit
-  // button chrome once instead of repeating it for each modal.
-  const FormModal = ({ title, onClose, onSubmit, children, btnLabel, btnColor }) => (
-    <div style={overlayStyle}>
-      <div style={modalStyle}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <h5 style={{ fontWeight: 700, color: '#0f172a', margin: 0 }}>{title}</h5>
-          <button onClick={onClose} style={{ background: '#f1f5f9', border: 'none', borderRadius: '8px', width: '32px', height: '32px', cursor: 'pointer', fontSize: '16px', color: '#64748b' }}>✕</button>
-        </div>
-        <form onSubmit={onSubmit}>
-          {children}
-          <button type="submit" style={{ marginTop: '20px', background: btnColor, color: 'white', border: 'none', padding: '12px 24px', borderRadius: '10px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', width: '100%' }}>
-            {btnLabel}
-          </button>
-        </form>
-      </div>
-    </div>
-  );
+  // ❌ DELETED: FormModal from here (moved outside)
 
   return (
     <div style={{ display: 'flex' }}>
@@ -367,13 +433,15 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        {/* Tab Switcher */}
+        {/* ✅ D4: Tab Switcher - ADDED Lab Catalog and Lab Techs tabs */}
         <div style={{ ...cardStyle, padding: '8px', marginBottom: '24px', display: 'inline-flex', gap: '4px' }}>
           {[
             { key: 'overview', label: '📊 Overview' },
             { key: 'doctors', label: '👨‍⚕️ Doctors' },
             { key: 'patients', label: '👥 Patients' },
             { key: 'appointments', label: '📅 Appointments' },
+            { key: 'labtests', label: '🧪 Lab Catalog' },    // ✅ NEW
+            { key: 'labtechs', label: '👩‍🔬 Lab Techs' },    // ✅ NEW
           ].map(tab => (
             <button key={tab.key} style={tabStyle(activeTab === tab.key)} onClick={() => setActiveTab(tab.key)}>
               {tab.label}
@@ -736,6 +804,113 @@ const AdminDashboard = () => {
           </div>
         )}
 
+        {/* ============================================================
+            ✅ D5: LAB CATALOG TAB — Manage lab tests
+           ============================================================ */}
+        {activeTab === 'labtests' && (
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h6 style={{ fontWeight: 700, color: '#0f172a', fontSize: '16px', margin: 0 }}>
+                🧪 Lab Test Catalog ({labTests.filter(t => t.isActive).length} active)
+              </h6>
+              <button style={btnPrimary} onClick={() => setShowAddTest(true)}>
+                <FaPlus /> Add Test
+              </button>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>{['Test Name', 'Category', 'Price', 'Normal Range', 'Status', 'Action'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {labTests.map(test => (
+                    <tr key={test._id}>
+                      <td style={tdStyle}><strong>{test.name}</strong></td>
+                      <td style={tdStyle}>{test.category}</td>
+                      <td style={tdStyle}>Rs. {test.price}</td>
+                      <td style={{ ...tdStyle, color: '#64748b', fontSize: '13px' }}>{test.normalRange || '—'}</td>
+                      <td style={tdStyle}>
+                        <span style={{ 
+                          background: test.isActive ? '#dcfce7' : '#fee2e2', 
+                          color: test.isActive ? '#16a34a' : '#dc2626', 
+                          padding: '3px 10px', 
+                          borderRadius: '20px', 
+                          fontSize: '12px', 
+                          fontWeight: 600 
+                        }}>
+                          {test.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td style={tdStyle}>
+                        {test.isActive && (
+                          <button onClick={() => handleDeactivateTest(test._id)} 
+                            style={{ 
+                              background: '#fee2e2', 
+                              color: '#dc2626', 
+                              border: 'none', 
+                              padding: '6px 12px', 
+                              borderRadius: '8px', 
+                              cursor: 'pointer', 
+                              fontSize: '13px', 
+                              fontWeight: 600 
+                            }}>
+                            Remove
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ============================================================
+            ✅ D6: LAB TECHS TAB — Manage lab technicians
+           ============================================================ */}
+        {activeTab === 'labtechs' && (
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h6 style={{ fontWeight: 700, color: '#0f172a', fontSize: '16px', margin: 0 }}>
+                👩‍🔬 Lab Technicians ({labTechs.length})
+              </h6>
+              <button style={{ 
+                background: 'linear-gradient(135deg, #06b6d4, #0891b2)', 
+                color: 'white', 
+                border: 'none', 
+                padding: '10px 20px', 
+                borderRadius: '10px', 
+                fontSize: '13px', 
+                fontWeight: 600, 
+                cursor: 'pointer', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '6px' 
+              }} 
+              onClick={() => setShowAddLabTech(true)}>
+                <FaPlus /> Add Lab Tech
+              </button>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>{['Name', 'Email', 'Phone'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {labTechs.map(tech => (
+                    <tr key={tech._id}>
+                      <td style={tdStyle}><strong>{tech.name}</strong></td>
+                      <td style={{ ...tdStyle, color: '#64748b' }}>{tech.email}</td>
+                      <td style={{ ...tdStyle, color: '#64748b' }}>{tech.phone || '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
       </div>
 
       {/* Add Doctor Modal */}
@@ -780,6 +955,90 @@ const AdminDashboard = () => {
               <option value="other">Other</option>
             </select>
           </div>
+        </FormModal>
+      )}
+
+      {/* ✅ D7: COMPLETELY FIXED Add Lab Test Modal */}
+      {showAddTest && (
+        <FormModal title="🧪 Add Lab Test to Catalog" onClose={() => setShowAddTest(false)} onSubmit={handleAddTest} btnLabel="Add Test" btnColor="linear-gradient(135deg, #3b82f6, #1d4ed8)">
+          <div style={{ marginBottom: '14px' }}>
+            <label style={labelStyle}>Test Name</label>
+            <input 
+              type="text" 
+              name="name"
+              style={inputStyle} 
+              placeholder="e.g., Complete Blood Count (CBC)" 
+              value={testForm.name} 
+              onChange={handleTestFormChange}
+              required 
+              autoFocus
+            />
+          </div>
+
+          <div style={{ marginBottom: '14px' }}>
+            <label style={labelStyle}>Category</label>
+            <input 
+              type="text" 
+              name="category"
+              style={inputStyle} 
+              placeholder="e.g., Hematology, Radiology" 
+              value={testForm.category} 
+              onChange={handleTestFormChange}
+              required 
+            />
+          </div>
+
+          <div style={{ marginBottom: '14px' }}>
+            <label style={labelStyle}>Price (Rs.)</label>
+            <input 
+              type="number" 
+              name="price"
+              style={inputStyle} 
+              placeholder="e.g., 500" 
+              value={testForm.price} 
+              onChange={handleTestFormChange}
+              required 
+            />
+          </div>
+
+          <div style={{ marginBottom: '14px' }}>
+            <label style={labelStyle}>Normal Range</label>
+            <input 
+              type="text" 
+              name="normalRange"
+              style={inputStyle} 
+              placeholder="e.g., 4.5–11.0 x10^9/L" 
+              value={testForm.normalRange} 
+              onChange={handleTestFormChange}
+            />
+          </div>
+
+          <div style={{ marginBottom: '14px' }}>
+            <label style={labelStyle}>Description</label>
+            <textarea 
+              name="description"
+              style={{ ...inputStyle, resize: 'vertical', minHeight: '70px' }} 
+              value={testForm.description} 
+              onChange={handleTestFormChange}
+            />
+          </div>
+        </FormModal>
+      )}
+
+      {/* Add Lab Tech Modal */}
+      {showAddLabTech && (
+        <FormModal title="👩‍🔬 Add Lab Technician" onClose={() => setShowAddLabTech(false)} onSubmit={handleAddLabTech} btnLabel="Add Lab Technician" btnColor="linear-gradient(135deg, #06b6d4, #0891b2)">
+          {[
+            { label: 'Full Name', key: 'name', type: 'text', placeholder: 'Jane Smith' },
+            { label: 'Email', key: 'email', type: 'email', placeholder: 'labtech@hospital.com' },
+            { label: 'Password', key: 'password', type: 'password', placeholder: 'Min 6 characters' },
+            { label: 'Phone', key: 'phone', type: 'text', placeholder: 'e.g., 9800000003' },
+          ].map(field => (
+            <div key={field.key} style={{ marginBottom: '14px' }}>
+              <label style={labelStyle}>{field.label}</label>
+              <input type={field.type} style={inputStyle} placeholder={field.placeholder} value={labTechForm[field.key]} onChange={e => setLabTechForm({ ...labTechForm, [field.key]: e.target.value })} required={['name', 'email', 'password'].includes(field.key)} />
+            </div>
+          ))}
         </FormModal>
       )}
 

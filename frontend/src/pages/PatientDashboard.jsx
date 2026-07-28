@@ -23,12 +23,16 @@ const PatientDashboard = () => {
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
 
+  // ✅ G1: NEW STATE for Lab Orders
+  const [labOrders, setLabOrders] = useState([]);
+
   useEffect(() => {
     fetchDoctors();
     fetchAppointments();
     fetchPrescriptions();
     fetchLabs();
     fetchMedicalHistory();
+    fetchLabOrders(); // ✅ NEW
   }, []);
 
   const fetchDoctors = async () => {
@@ -60,6 +64,16 @@ const PatientDashboard = () => {
       }
     } catch (e) {
       console.error('Error fetching history:', e);
+    }
+  };
+
+  // ✅ G1: NEW fetch function for Lab Orders
+  const fetchLabOrders = async () => {
+    try { 
+      const { data } = await axios.get('/lab-orders/patient'); 
+      setLabOrders(data); 
+    } catch (e) { 
+      console.error(e); 
     }
   };
 
@@ -103,35 +117,35 @@ const PatientDashboard = () => {
   };
 
   const handleDelete = async (id) => {
-  try {
-    await axios.delete(`/appointments/${id}`);
-    toast.success('Appointment cancelled');
-    fetchAppointments();
-  } catch (error) {
-    console.error(error);
-    toast.error('Failed to cancel appointment');
-  }
-};
+    try {
+      await axios.delete(`/appointments/${id}`);
+      toast.success('Appointment cancelled');
+      fetchAppointments();
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to cancel appointment');
+    }
+  };
 
- const handleBooking = async (e) => {
-  e.preventDefault();
-  setError(''); setSuccess('');
-  try {
-    await axios.post('/appointments', formData);
-    setSuccess('Appointment booked successfully!');
-    toast.success('Appointment booked successfully!');
-    setFormData({ doctorId: '', date: '', reason: '', appointmentTime: '' });
-    setSelectedDepartment('');
-    setAvailableSlots([]);
-    setDoctorSchedule(null);
-    fetchAppointments();
-    setActiveTab('appointments');
-  } catch (err) {
-    const message = err.response?.data?.message || 'Booking failed';
-    setError(message);
-    toast.error(message);
-  }
-};
+  const handleBooking = async (e) => {
+    e.preventDefault();
+    setError(''); setSuccess('');
+    try {
+      await axios.post('/appointments', formData);
+      setSuccess('Appointment booked successfully!');
+      toast.success('Appointment booked successfully!');
+      setFormData({ doctorId: '', date: '', reason: '', appointmentTime: '' });
+      setSelectedDepartment('');
+      setAvailableSlots([]);
+      setDoctorSchedule(null);
+      fetchAppointments();
+      setActiveTab('appointments');
+    } catch (err) {
+      const message = err.response?.data?.message || 'Booking failed';
+      setError(message);
+      toast.error(message);
+    }
+  };
 
   const handleFollowUp = (apt) => {
     setSelectedDepartment(apt.doctorId?.specialization);
@@ -328,14 +342,15 @@ const PatientDashboard = () => {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div style={{ ...cardStyle, padding: '8px', marginBottom: '24px', display: 'inline-flex', gap: '4px' }}>
+        {/* ✅ G2: UPDATED Tabs with Lab Results */}
+        <div style={{ ...cardStyle, padding: '8px', marginBottom: '24px', display: 'inline-flex', gap: '4px', flexWrap: 'wrap' }}>
           {[
             { key: 'overview', label: '📋 Overview' },
             { key: 'book', label: '📅 Book Appointment' },
             { key: 'appointments', label: '🗓 My Appointments' },
             { key: 'prescriptions', label: '💊 Prescriptions' },
             { key: 'labs', label: '🔬 Lab Reports' },
+            { key: 'labresults', label: '🧪 Lab Results' }, // ✅ NEW
             { key: 'history', label: '❤️ Medical History' },
           ].map(tab => (
             <button key={tab.key} style={tabStyle(activeTab === tab.key)} onClick={() => setActiveTab(tab.key)}>
@@ -344,7 +359,7 @@ const PatientDashboard = () => {
           ))}
         </div>
 
-        {/* Overview Tab */}
+        {/* Overview Tab - unchanged */}
         {activeTab === 'overview' && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
             {/* Recent Appointments */}
@@ -462,7 +477,7 @@ const PatientDashboard = () => {
           </div>
         )}
 
-        {/* Book Appointment Tab */}
+        {/* Book Appointment Tab - unchanged */}
         {activeTab === 'book' && (
           <div style={{ maxWidth: '560px' }}>
             <div style={cardStyle}>
@@ -554,7 +569,7 @@ const PatientDashboard = () => {
           </div>
         )}
 
-        {/* My Appointments Tab */}
+        {/* My Appointments Tab - unchanged */}
         {activeTab === 'appointments' && (
           <div style={cardStyle}>
             <h6 style={{ fontWeight: 700, color: '#0f172a', marginBottom: '20px', fontSize: '16px' }}>
@@ -612,7 +627,7 @@ const PatientDashboard = () => {
           </div>
         )}
 
-        {/* Prescriptions Tab */}
+        {/* Prescriptions Tab - unchanged */}
         {activeTab === 'prescriptions' && (
           <div style={cardStyle}>
             <h6 style={{ fontWeight: 700, color: '#0f172a', marginBottom: '20px', fontSize: '16px' }}>
@@ -659,7 +674,7 @@ const PatientDashboard = () => {
           </div>
         )}
 
-        {/* Lab Reports Tab */}
+        {/* Lab Reports Tab - unchanged */}
         {activeTab === 'labs' && (
           <div style={cardStyle}>
             <h6 style={{ fontWeight: 700, color: '#0f172a', marginBottom: '20px', fontSize: '16px' }}>
@@ -697,7 +712,76 @@ const PatientDashboard = () => {
           </div>
         )}
 
-        {/* Medical History Tab */}
+        {/* ✅ G2: NEW Lab Results Tab */}
+        {activeTab === 'labresults' && (
+          <div style={cardStyle}>
+            <h6 style={{ fontWeight: 700, color: '#0f172a', marginBottom: '20px', fontSize: '16px' }}>
+              🧪 My Lab Results
+            </h6>
+            {labOrders.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
+                <FaFileDownload style={{ fontSize: '40px', marginBottom: '12px', opacity: 0.3 }} />
+                <p>No lab tests ordered yet</p>
+                <p style={{ fontSize: '13px', marginTop: '4px' }}>Your doctor will order tests during your appointments.</p>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
+                {labOrders.map(order => (
+                  <div key={order._id} style={{ background: '#f8fafc', borderRadius: '12px', padding: '20px', border: '1.5px solid #e2e8f0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                      <div style={{ fontWeight: 700, fontSize: '15px', color: '#0f172a' }}>
+                        {order.testId?.name || 'Unknown Test'}
+                      </div>
+                      <span style={{
+                        background: order.status === 'completed' ? '#dcfce7' : '#fef9c3',
+                        color: order.status === 'completed' ? '#16a34a' : '#ca8a04',
+                        padding: '3px 10px', 
+                        borderRadius: '20px', 
+                        fontSize: '11px', 
+                        fontWeight: 600
+                      }}>
+                        {order.status?.replace('_', ' ') || 'pending'}
+                      </span>
+                    </div>
+                    <div style={{ color: '#64748b', fontSize: '13px', marginBottom: '8px' }}>
+                      Ordered by Dr. {order.doctorId?.name || 'Unknown'}
+                    </div>
+                    {order.status === 'completed' ? (
+                      <div style={{ background: 'white', borderRadius: '8px', padding: '12px', marginTop: '10px', border: '1px solid #e2e8f0' }}>
+                        <div style={{ fontSize: '13px', color: '#64748b' }}>Result:</div>
+                        <div style={{
+                          fontSize: '18px', 
+                          fontWeight: 700,
+                          color: order.resultFlag === 'critical' ? '#dc2626' : 
+                                 order.resultFlag === 'abnormal' ? '#ca8a04' : 
+                                 '#16a34a'
+                        }}>
+                          {order.resultValue || 'N/A'} 
+                          {order.resultFlag && (
+                            <span style={{ fontSize: '12px', fontWeight: 400 }}>
+                              {' '}({order.resultFlag})
+                            </span>
+                          )}
+                        </div>
+                        {order.testId?.normalRange && (
+                          <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>
+                            Normal range: {order.testId.normalRange}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p style={{ color: '#94a3b8', fontSize: '13px', marginTop: '10px', fontStyle: 'italic' }}>
+                        Results pending — you'll get a notification when ready.
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Medical History Tab - unchanged */}
         {activeTab === 'history' && (
           <MedicalHistoryCard
             history={medicalHistory}

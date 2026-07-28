@@ -1,4 +1,16 @@
-import { FaHospital, FaUser, FaSignOutAlt, FaCalendarCheck, FaPills, FaFlask, FaUserMd, FaUserShield, FaTachometerAlt, FaUsers, FaHeartbeat } from 'react-icons/fa';
+import { 
+  FaHospital, 
+  FaUser, 
+  FaSignOutAlt, 
+  FaCalendarCheck, 
+  FaPills, 
+  FaFlask,           // ✅ Already imported - good!
+  FaUserMd, 
+  FaUserShield, 
+  FaTachometerAlt, 
+  FaUsers, 
+  FaHeartbeat 
+} from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -34,20 +46,29 @@ const Navbar = () => {
       { icon: <FaUsers />, label: 'Patients', path: '/admin-dashboard' },
       { icon: <FaHeartbeat />, label: 'Medical Histories', path: '/medical-history' },
     ],
+    // ✅ ADDED LABTECH NAV LINKS
+    labtech: [
+      { icon: <FaTachometerAlt />, label: 'Dashboard', path: '/labtech-dashboard' },
+      { icon: <FaFlask />, label: 'Test Queue', path: '/labtech-dashboard' },
+    ],
   };
 
   const links = navLinks[user?.role] || [];
 
+  // ✅ ADDED labtech to roleColor
   const roleColor = {
     admin: '#f59e0b',
     doctor: '#3b82f6',
     patient: '#10b981',
+    labtech: '#06b6d4',     // Cyan color for lab techs
   };
 
+  // ✅ ADDED labtech to roleIcon
   const roleIcon = {
     admin: <FaUserShield />,
     doctor: <FaUserMd />,
     patient: <FaUser />,
+    labtech: <FaFlask />,   // Flask icon for lab techs
   };
 
   return (
@@ -209,7 +230,7 @@ const Navbar = () => {
       </div>
 
       {/* Main content offset */}
-     
+      
     </>
   );
 };

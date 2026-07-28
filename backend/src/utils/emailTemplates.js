@@ -73,9 +73,30 @@ const labReportTemplate = (patientName, doctorName, testName) => `
   </div>
 `;
 
+const resetPasswordTemplate = (name, resetUrl) => `
+  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+    <div style="background: linear-gradient(135deg, #dc2626, #b91c1c); padding: 24px; border-radius: 12px 12px 0 0;">
+      <h2 style="color: white; margin: 0;">🏥 Saanvi HMS</h2>
+    </div>
+    <div style="padding: 24px; background: #f8fafc; border-radius: 0 0 12px 12px;">
+      <h3 style="color: #0f172a;">🔒 Password Reset Request</h3>
+      <p>Hi ${name},</p>
+      <p>We received a request to reset your password. Click the button below to set a new one:</p>
+      <div style="text-align: center; margin: 24px 0;">
+        <a href="${resetUrl}" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 12px 28px; border-radius: 10px; text-decoration: none; font-weight: 600; display: inline-block;">
+          Reset My Password
+        </a>
+      </div>
+      <p style="color: #64748b; font-size: 13px;">This link will expire in <strong>30 minutes</strong>. If you didn't request this, you can safely ignore this email.</p>
+      <p style="color: #94a3b8; font-size: 12px; margin-top: 24px;">This is an automated message from Saanvi HMS. Please do not reply.</p>
+    </div>
+  </div>
+`;
+
 module.exports = {
   appointmentBookedTemplate,
   appointmentStatusTemplate,
   prescriptionTemplate,
+  resetPasswordTemplate,
   labReportTemplate
 };

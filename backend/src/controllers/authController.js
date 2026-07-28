@@ -1,3 +1,6 @@
+const crypto = require('crypto');
+const sendEmail = require('../utils/sendEmail');
+const { resetPasswordTemplate } = require('../utils/emailTemplates');
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 
@@ -90,6 +93,72 @@ const loginUser = async (req, res) => {
   }
 };
 
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+
+    // Deliberately respond with the SAME message whether or not the email
+    // exists — this prevents attackers from using this endpoint to check
+    // which emails are registered in our system.
+    if (!user) {
+      return res.json({ message: 'If that email exists, a reset link has been sent.' });
+    }
+
+    // Generate a random, unguessable token
+    const rawToken = crypto.randomBytes(32).toString('hex');
+
+    // Store only the HASHED version in the database — never the raw token
+    const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+    user.resetPasswordToken = hashedToken;
+    user.resetPasswordExpire = Date.now() + 30 * 60 * 1000; // 30 minutes from now
+    await user.save();
+
+    // Build the link the user will click, containing the RAW token
+    const resetUrl = `http://localhost:5173/reset-password/${rawToken}`;
+
+    sendEmail({
+      to: user.email,
+      subject: 'Password Reset Request — Saanvi HMS',
+      html: resetPasswordTemplate(user.name, resetUrl)
+    });
+
+    res.json({ message: 'If that email exists, a reset link has been sent.' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { password } = req.body;
+
+    // Hash the RAW token from the URL the same way we hashed it when saving —
+    // so we can compare it against what's stored in the database
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpire: { $gt: Date.now() } // $gt = "greater than" — must not be expired yet
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid or expired reset link' });
+    }
+
+    user.password = password; // will be auto-hashed by the pre('save') hook on the User model
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+    await user.save();
+
+    res.json({ message: 'Password reset successful. You can now log in.' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 const getMe = async (req, res) => {
   try {
     res.json(req.user);
@@ -99,4 +168,4 @@ const getMe = async (req, res) => {
   }
 };
 
-module.exports = { registerUser, loginUser, getMe };
+module.exports = { registerUser, loginUser, getMe , forgotPassword, resetPassword };

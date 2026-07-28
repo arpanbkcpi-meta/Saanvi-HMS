@@ -31,6 +31,13 @@ const adminOnly = (req, res, next) => {
   next();
 };
 
+const labTechOnly = (req, res, next) => {
+  if (req.user.role !== 'labtech' && req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Lab technician access required' });
+  }
+  next();
+};
+
 const authorize = (...roles) => {
   return (req, res, next) => {
     if (!req.user || !roles.includes(req.user.role)) {
@@ -42,4 +49,4 @@ const authorize = (...roles) => {
   };
 };
 
-module.exports = { protect, authorize,adminOnly };
+module.exports = { protect, authorize,adminOnly , labTechOnly };

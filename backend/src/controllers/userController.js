@@ -88,4 +88,54 @@ const addPatient = async (req, res) => {
   }
 };
 
-module.exports = { getDoctors, getPatients, deleteUser, addDoctor, addPatient };
+// ✅ YOUR NEW FUNCTIONS (with improvements)
+const addLabTech = async (req, res) => {
+  try {
+    const { name, email, password, phone } = req.body;
+    
+    // Check if user already exists
+    const userExists = await User.findOne({ email });
+    if (userExists) {
+      return res.status(400).json({ message: 'User already exists' });
+    }
+
+    const labTech = await User.create({ 
+      name, 
+      email, 
+      password, 
+      phone, 
+      role: 'labtech' 
+    });
+    
+    // Return consistent response without password
+    res.status(201).json({
+      _id: labTech._id,
+      name: labTech.name,
+      email: labTech.email,
+      role: labTech.role,
+      phone: labTech.phone
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const getLabTechs = async (req, res) => {
+  try {
+    const labTechs = await User.find({ role: 'labtech' }).select('-password');
+    res.json(labTechs);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ✅ EXPORT ALL FUNCTIONS
+module.exports = { 
+  getDoctors, 
+  getPatients, 
+  deleteUser, 
+  addDoctor, 
+  addPatient,
+  addLabTech,    // ✅ Added
+  getLabTechs    // ✅ Added
+};

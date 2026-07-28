@@ -25,6 +25,10 @@ app.use('/api/users', require('./src/routes/userRoutes'));
 app.use('/api/medical-histories', require('./src/routes/medicalHistoryRoutes'));
 app.use('/api/doctor-schedule', require('./src/routes/doctorScheduleRoutes'));
 
+// ✅ NEW ROUTES - Add them here (after existing routes)
+app.use('/api/lab-tests', require('./src/routes/labTestRoutes'));
+app.use('/api/lab-orders', require('./src/routes/labOrderRoutes'));
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Saanvi HMS Backend is running!' });

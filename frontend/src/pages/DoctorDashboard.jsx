@@ -1,6 +1,18 @@
 import { toast } from 'react-toastify';
 import { useState, useEffect } from 'react';
-import { FaUserMd, FaCalendarCheck, FaClock, FaCheckCircle, FaPills, FaFileUpload, FaTimesCircle, FaCalendarAlt, FaPlus, FaTrash } from 'react-icons/fa';
+import { 
+  FaUserMd, 
+  FaCalendarCheck, 
+  FaClock, 
+  FaCheckCircle, 
+  FaPills, 
+  FaFileUpload, 
+  FaTimesCircle, 
+  FaCalendarAlt, 
+  FaPlus, 
+  FaTrash,
+  FaFlask  // ✅ ADDED - required for Lab Orders stat card
+} from 'react-icons/fa';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
 import axios from '../utils/axios';
@@ -9,7 +21,7 @@ import { useNavigate } from 'react-router-dom';
 const DoctorDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [appointments, setAppointments] = useState([]);//The react is going to redraw the screen , this is the logic
+  const [appointments, setAppointments] = useState([]);
   const [prescriptions, setPrescriptions] = useState([]);
   const [labs, setLabs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,6 +36,13 @@ const DoctorDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [expandedReason, setExpandedReason] = useState(null);
 
+  // ✅ E1: NEW STATE for Lab Orders
+  const [labTestCatalog, setLabTestCatalog] = useState([]);
+  const [myLabOrders, setMyLabOrders] = useState([]);
+  const [showOrderTestForm, setShowOrderTestForm] = useState(false);
+  const [selectedOrderAppointment, setSelectedOrderAppointment] = useState(null);
+  const [selectedTestId, setSelectedTestId] = useState('');
+
   // ── Schedule state ────────────────────────────────────────────
   const [schedule, setSchedule] = useState(null);
   const [scheduleForm, setScheduleForm] = useState({
@@ -37,61 +56,99 @@ const DoctorDashboard = () => {
   const [scheduleError, setScheduleError] = useState('');
   const [unavailableDate, setUnavailableDate] = useState('');
 
+  // ✅ E2: UPDATED useEffect with new fetch functions
   useEffect(() => {
-    fetchAppointments();
-    fetchPrescriptions();
-    fetchLabs();
-    fetchSchedule();
-  }, []);
+    if (user?._id) {
+      fetchAppointments();
+      fetchPrescriptions();
+      fetchLabs();
+      fetchSchedule();
+      fetchLabTestCatalog();
+      fetchMyLabOrders();
+    }
+  }, [user]);
 
   const fetchAppointments = async () => {
-    try { const { data } = await axios.get('/appointments/doctor'); setAppointments(data); }
-    catch (e) { console.error(e); } finally { setLoading(false); }
+    try { 
+      const { data } = await axios.get('/appointments/doctor'); 
+      setAppointments(data); 
+    } catch (e) { 
+      console.error('Error fetching appointments:', e); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const fetchPrescriptions = async () => {
-    try { const { data } = await axios.get('/prescriptions/doctor'); setPrescriptions(data); }
-    catch (e) { console.error(e); }
+    try { 
+      const { data } = await axios.get('/prescriptions/doctor'); 
+      setPrescriptions(data); 
+    } catch (e) { 
+      console.error('Error fetching prescriptions:', e); 
+    }
   };
 
   const fetchLabs = async () => {
-    try { const { data } = await axios.get('/labs/doctor'); setLabs(data); }
-    catch (e) { console.error(e); }
+    try { 
+      const { data } = await axios.get('/labs/doctor'); 
+      setLabs(data); 
+    } catch (e) { 
+      console.error('Error fetching labs:', e); 
+    }
   };
 
   const fetchSchedule = async () => {
     try {
+      if (!user?._id) return;
       const { data } = await axios.get(`/doctor-schedule/${user._id}`);
       setSchedule(data);
       setScheduleForm({
-        workingDays: data.workingDays,
-        startTime: data.startTime,
-        endTime: data.endTime,
-        slotDurationMinutes: data.slotDurationMinutes,
+        workingDays: data.workingDays || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+        startTime: data.startTime || '09:00',
+        endTime: data.endTime || '17:00',
+        slotDurationMinutes: data.slotDurationMinutes || 30,
         breakTimes: data.breakTimes || [],
       });
     } catch (e) {
-      // 404 means no schedule yet — that's fine
-      if (e.response?.status !== 404) console.error(e);
+      if (e.response?.status !== 404) console.error('Error fetching schedule:', e);
+    }
+  };
+
+  // ✅ E2: NEW fetch functions for Lab Orders
+  const fetchLabTestCatalog = async () => {
+    try { 
+      const { data } = await axios.get('/lab-tests'); 
+      setLabTestCatalog(data || []); 
+    } catch (e) { 
+      console.error('Error fetching lab tests:', e); 
+    }
+  };
+
+  const fetchMyLabOrders = async () => {
+    try { 
+      const { data } = await axios.get('/lab-orders/doctor'); 
+      setMyLabOrders(data || []); 
+    } catch (e) { 
+      console.error('Error fetching lab orders:', e); 
     }
   };
 
   const handleSaveSchedule = async (e) => {
-  e.preventDefault();
-  setScheduleSaved(false);
-  setScheduleError('');
-  try {
-    await axios.post('/doctor-schedule', scheduleForm);
-    setScheduleSaved(true);
-    toast.success('Schedule saved successfully!');
-    fetchSchedule();
-    setTimeout(() => setScheduleSaved(false), 3000);
-  } catch (err) {
-    const message = err.response?.data?.message || 'Failed to save schedule';
-    setScheduleError(message);
-    toast.error(message);
-  }
-};
+    e.preventDefault();
+    setScheduleSaved(false);
+    setScheduleError('');
+    try {
+      await axios.post('/doctor-schedule', scheduleForm);
+      setScheduleSaved(true);
+      toast.success('Schedule saved successfully!');
+      fetchSchedule();
+      setTimeout(() => setScheduleSaved(false), 3000);
+    } catch (err) {
+      const message = err.response?.data?.message || 'Failed to save schedule';
+      setScheduleError(message);
+      toast.error(message);
+    }
+  };
 
   const toggleWorkingDay = (day) => {
     setScheduleForm(prev => ({
@@ -139,15 +196,15 @@ const DoctorDashboard = () => {
   };
 
   const handleStatus = async (id, status) => {
-  try {
-    await axios.put(`/appointments/${id}/status`, { status });
-    toast.success(`Appointment ${status}`);
-    fetchAppointments();
-  } catch (e) {
-    console.error(e);
-    toast.error('Failed to update appointment');
-  }
-};
+    try {
+      await axios.put(`/appointments/${id}/status`, { status });
+      toast.success(`Appointment ${status}`);
+      fetchAppointments();
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to update appointment');
+    }
+  };
 
   const handleMedicineChange = (index, field, value) => {
     const newList = [...medicineList];
@@ -156,44 +213,66 @@ const DoctorDashboard = () => {
   };
 
   const handlePrescribe = async (e) => {
-  e.preventDefault();
-  try {
-    await axios.post('/prescriptions', {
-      appointmentId: selectedAppointment._id,
-      patientId: selectedAppointment.patientId._id,
-      medicines: medicineList.filter(m => m.name),
-      notes
-    });
-    fetchAppointments(); fetchPrescriptions();
-    setShowPrescribeForm(false);
-    setMedicineList([{ name: '', dosage: '', frequency: '', duration: '' }]);
-    setNotes(''); setSelectedAppointment(null);
-    toast.success('Prescription created successfully');
-  } catch (e) {
-    console.error(e);
-    toast.error('Failed to create prescription');
-  }
-};
+    e.preventDefault();
+    try {
+      await axios.post('/prescriptions', {
+        appointmentId: selectedAppointment._id,
+        patientId: selectedAppointment.patientId._id,
+        medicines: medicineList.filter(m => m.name),
+        notes
+      });
+      fetchAppointments(); 
+      fetchPrescriptions();
+      setShowPrescribeForm(false);
+      setMedicineList([{ name: '', dosage: '', frequency: '', duration: '' }]);
+      setNotes(''); 
+      setSelectedAppointment(null);
+      toast.success('Prescription created successfully');
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to create prescription');
+    }
+  };
+
   const handleUploadLab = async (e) => {
-  e.preventDefault();
-  const formData = new FormData();
-  formData.append('appointmentId', selectedLabAppointment._id);
-  formData.append('patientId', selectedLabAppointment.patientId._id);
-  formData.append('testName', labForm.testName);
-  formData.append('notes', labForm.notes);
-  formData.append('file', labForm.file);
-  try {
-    await axios.post('/labs', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-    fetchAppointments(); fetchLabs();
-    setShowLabForm(false);
-    setLabForm({ testName: '', notes: '', file: null });
-    setSelectedLabAppointment(null);
-    toast.success('Lab report uploaded successfully');
-  } catch (e) {
-    console.error(e);
-    toast.error('Failed to upload lab report');
-  }
-};
+    e.preventDefault();
+    const formData = new FormData();
+    formData.append('appointmentId', selectedLabAppointment._id);
+    formData.append('patientId', selectedLabAppointment.patientId._id);
+    formData.append('testName', labForm.testName);
+    formData.append('notes', labForm.notes);
+    formData.append('file', labForm.file);
+    try {
+      await axios.post('/labs', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      fetchAppointments(); 
+      fetchLabs();
+      setShowLabForm(false);
+      setLabForm({ testName: '', notes: '', file: null });
+      setSelectedLabAppointment(null);
+      toast.success('Lab report uploaded successfully');
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to upload lab report');
+    }
+  };
+
+  // ✅ E3: ORDER TEST HANDLER
+  const handleOrderTest = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.post('/lab-orders', {
+        patientId: selectedOrderAppointment.patientId._id,
+        appointmentId: selectedOrderAppointment._id,
+        testId: selectedTestId,
+      });
+      toast.success('Lab test ordered successfully');
+      setShowOrderTestForm(false);
+      setSelectedTestId('');
+      fetchMyLabOrders();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to order test');
+    }
+  };
 
   const filteredAppointments = appointmentFilter === 'all'
     ? appointments
@@ -235,8 +314,12 @@ const DoctorDashboard = () => {
     width: '52px', height: '52px',
     background: 'rgba(255,255,255,0.2)',
     borderRadius: '14px',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: '22px', color: 'white', flexShrink: 0,
+    display: 'flex', 
+    alignItems: 'center', 
+    justifyContent: 'center',
+    fontSize: '22px', 
+    color: 'white', 
+    flexShrink: 0,
   };
 
   const tabStyle = (active) => ({
@@ -274,21 +357,36 @@ const DoctorDashboard = () => {
       approved: { background: '#dcfce7', color: '#16a34a' },
       rejected: { background: '#fee2e2', color: '#dc2626' },
       pending:  { background: '#fef9c3', color: '#ca8a04' },
+      completed: { background: '#dbeafe', color: '#2563eb' },
+      cancelled: { background: '#fee2e2', color: '#dc2626' },
+      ordered: { background: '#fef3c7', color: '#d97706' },
+      collected: { background: '#e0f2fe', color: '#0284c7' },
+      in_progress: { background: '#ede9fe', color: '#7c3aed' },
     };
-    return { ...styles[status], padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 600 };
+    return { 
+      ...styles[status] || styles.pending, 
+      padding: '4px 12px', 
+      borderRadius: '20px', 
+      fontSize: '12px', 
+      fontWeight: 600 
+    };
   };
 
   const thStyle = {
     padding: '12px 16px',
-    fontSize: '12px', fontWeight: 600,
-    color: '#64748b', textTransform: 'uppercase',
-    letterSpacing: '0.5px', background: '#f8fafc',
+    fontSize: '12px', 
+    fontWeight: 600,
+    color: '#64748b', 
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px', 
+    background: '#f8fafc',
     borderBottom: '1px solid #e2e8f0',
   };
 
   const tdStyle = {
     padding: '14px 16px',
-    fontSize: '14px', color: '#374151',
+    fontSize: '14px', 
+    color: '#374151',
     borderBottom: '1px solid #f1f5f9',
     verticalAlign: 'middle',
   };
@@ -299,26 +397,50 @@ const DoctorDashboard = () => {
     border: 'none',
     background: active ? '#3b82f6' : '#f1f5f9',
     color: active ? 'white' : '#64748b',
-    fontSize: '13px', fontWeight: active ? 600 : 400,
-    cursor: 'pointer', transition: 'all 0.2s',
+    fontSize: '13px', 
+    fontWeight: active ? 600 : 400,
+    cursor: 'pointer', 
+    transition: 'all 0.2s',
   });
 
   const overlayStyle = {
-    position: 'fixed', top: 0, left: 0,
-    width: '100%', height: '100%',
+    position: 'fixed', 
+    top: 0, 
+    left: 0,
+    width: '100%', 
+    height: '100%',
     background: 'rgba(0,0,0,0.5)',
     zIndex: 2000,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    display: 'flex', 
+    alignItems: 'center', 
+    justifyContent: 'center',
   };
 
   const modalStyle = {
     background: 'white',
     borderRadius: '20px',
     padding: '32px',
-    width: '90%', maxWidth: '680px',
-    maxHeight: '85vh', overflowY: 'auto',
+    width: '90%', 
+    maxWidth: '680px',
+    maxHeight: '85vh', 
+    overflowY: 'auto',
     boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
   };
+
+  // ✅ If user is not loaded yet, show loading
+  if (!user) {
+    return (
+      <div style={{ display: 'flex' }}>
+        <Navbar />
+        <div style={{ minHeight: '100vh', marginLeft: '250px', padding: '32px' }}>
+          <div style={{ textAlign: 'center', padding: '60px', color: '#94a3b8' }}>
+            <div style={{ fontSize: '24px', marginBottom: '12px' }}>⏳</div>
+            <p>Loading your profile...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex' }}>
@@ -379,15 +501,24 @@ const DoctorDashboard = () => {
               <div style={{ color: 'white', fontSize: '32px', fontWeight: 800 ,lineHeight:1.1, marginTop:'2px'}}>{labs.length}</div>
             </div>
           </div>
+          {/* ✅ NEW: Lab Orders Stat Card */}
+          <div style={statCardStyle('linear-gradient(135deg, #8b5cf6, #7c3aed)', '0 4px 16px rgba(139,92,246,0.3)')}>
+            <div style={iconBoxStyle}><FaFlask /></div>
+            <div>
+              <div style={{ color: 'rgba(255,255,255,0.95)', fontSize: '13px',fontWeight:600, letterSpacing:'0.3px' }}>Lab Orders</div>
+              <div style={{ color: 'white', fontSize: '32px', fontWeight: 800 ,lineHeight:1.1, marginTop:'2px'}}>{myLabOrders.length}</div>
+            </div>
+          </div>
         </div>
 
-        {/* Tabs */}
+        {/* ✅ E6: UPDATED Tabs with Lab Orders */}
         <div style={{ ...cardStyle, padding: '8px', marginBottom: '24px', display: 'inline-flex', gap: '4px', flexWrap: 'wrap' }}>
           {[
             { key: 'overview', label: '📊 Overview' },
             { key: 'appointments', label: '📅 Appointments' },
             { key: 'prescriptions', label: '💊 Prescriptions' },
             { key: 'labs', label: '🔬 Lab Reports' },
+            { key: 'laborders', label: '🧪 Lab Orders' },  // ✅ NEW
             { key: 'schedule', label: '⏰ Schedule' },
             { key: 'profile', label: '👨‍⚕️ Profile' },
           ].map(tab => (
@@ -470,37 +601,37 @@ const DoctorDashboard = () => {
                           <div style={{ fontWeight: 600 }}>{apt.patientId?.name}</div>
                         </td>
                         <td style={tdStyle}>{new Date(apt.date).toLocaleDateString()}</td>
-<td style={{ ...tdStyle, maxWidth: '220px' }}>
-  <div
-    onClick={() => setExpandedReason(expandedReason === apt._id ? null : apt._id)}
-    style={{
-      cursor: 'pointer',
-      lineHeight: '1.4',
-      ...(expandedReason === apt._id
-        ? {}
-        : {
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden'
-          }
-      )
-    }}
-  >
-    {apt.reason}
-  </div>
-  {apt.reason && apt.reason.length > 60 && (
-    <span
-      onClick={() => setExpandedReason(expandedReason === apt._id ? null : apt._id)}
-      style={{ color: '#3b82f6', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
-    >
-      {expandedReason === apt._id ? 'Show less' : 'Show more'}
-    </span>
-  )}
-</td>
+                        <td style={{ ...tdStyle, maxWidth: '220px' }}>
+                          <div
+                            onClick={() => setExpandedReason(expandedReason === apt._id ? null : apt._id)}
+                            style={{
+                              cursor: 'pointer',
+                              lineHeight: '1.4',
+                              ...(expandedReason === apt._id
+                                ? {}
+                                : {
+                                    display: '-webkit-box',
+                                    WebkitLineClamp: 2,
+                                    WebkitBoxOrient: 'vertical',
+                                    overflow: 'hidden'
+                                  }
+                              )
+                            }}
+                          >
+                            {apt.reason}
+                          </div>
+                          {apt.reason && apt.reason.length > 60 && (
+                            <span
+                              onClick={() => setExpandedReason(expandedReason === apt._id ? null : apt._id)}
+                              style={{ color: '#3b82f6', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+                            >
+                              {expandedReason === apt._id ? 'Show less' : 'Show more'}
+                            </span>
+                          )}
+                        </td>
                         <td style={tdStyle}><span style={badgeStyle(apt.status)}>{apt.status}</span></td>
                         <td style={tdStyle}>
-                          <div style={{ display: 'flex', gap: '8px' }}>
+                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                             {apt.status === 'pending' && (<>
                               <button style={{ background: '#dcfce7', color: '#16a34a', border: 'none', padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }} onClick={() => handleStatus(apt._id, 'approved')}>✓ Approve</button>
                               <button style={{ background: '#fee2e2', color: '#dc2626', border: 'none', padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }} onClick={() => handleStatus(apt._id, 'rejected')}>✕ Reject</button>
@@ -509,6 +640,11 @@ const DoctorDashboard = () => {
                               <button style={{ background: '#ede9fe', color: '#7c3aed', border: 'none', padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }} onClick={() => { setSelectedAppointment(apt); setShowPrescribeForm(true); window.scrollTo(0, 0); }}>💊 Rx</button>
                               <button style={{ background: '#cffafe', color: '#0891b2', border: 'none', padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }} onClick={() => { setSelectedLabAppointment(apt); setShowLabForm(true); window.scrollTo(0, 0); }}>🔬 Lab</button>
                               <button style={{ background: '#dbeafe', color: '#2563eb', border: 'none', padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }} onClick={() => navigate('/medical-history', { state: { patientId: apt.patientId?._id } })}>❤️ EMR</button>
+                              {/* ✅ E4: NEW "Order Test" button */}
+                              <button style={{ background: '#e0f7fa', color: '#0891b2', border: 'none', padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+                                onClick={() => { setSelectedOrderAppointment(apt); setShowOrderTestForm(true); }}>
+                                🧪 Order Test
+                              </button>
                             </>)}
                           </div>
                         </td>
@@ -596,11 +732,70 @@ const DoctorDashboard = () => {
           </div>
         )}
 
+        {/* ✅ E6: NEW Lab Orders Tab */}
+        {activeTab === 'laborders' && (
+          <div style={cardStyle}>
+            <h6 style={{ fontWeight: 700, color: '#0f172a', marginBottom: '20px', fontSize: '16px' }}>
+              🧪 Lab Orders ({myLabOrders.length})
+            </h6>
+            {myLabOrders.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
+                <FaFlask style={{ fontSize: '40px', marginBottom: '12px', opacity: 0.3 }} />
+                <p>No lab orders placed yet</p>
+                <p style={{ fontSize: '13px', marginTop: '4px' }}>Order tests from the Appointments tab</p>
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr>{['Patient', 'Test', 'Status', 'Result', 'Ordered'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr>
+                  </thead>
+                  <tbody>
+                    {myLabOrders.map(order => (
+                      <tr key={order._id}
+                        onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                        <td style={tdStyle}>
+                          <div style={{ fontWeight: 600 }}>{order.patientId?.name || 'Unknown'}</div>
+                        </td>
+                        <td style={tdStyle}>
+                          <div style={{ fontWeight: 500 }}>{order.testId?.name || 'Unknown Test'}</div>
+                          <div style={{ color: '#64748b', fontSize: '12px' }}>{order.testId?.category}</div>
+                        </td>
+                        <td style={tdStyle}>
+                          <span style={badgeStyle(
+                            order.status === 'completed' ? 'approved' : 
+                            order.status === 'cancelled' ? 'rejected' : 
+                            'pending'
+                          )}>
+                            {order.status?.replace('_', ' ') || 'pending'}
+                          </span>
+                        </td>
+                        <td style={tdStyle}>
+                          {order.resultValue ? (
+                            <span style={{ 
+                              fontWeight: 600, 
+                              color: order.resultFlag === 'critical' ? '#dc2626' : 
+                                     order.resultFlag === 'abnormal' ? '#ca8a04' : 
+                                     '#16a34a' 
+                            }}>
+                              {order.resultValue} {order.resultFlag && `(${order.resultFlag})`}
+                            </span>
+                          ) : '—'}
+                        </td>
+                        <td style={tdStyle}>{new Date(order.createdAt).toLocaleDateString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Schedule Tab */}
         {activeTab === 'schedule' && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-
-            {/* Schedule Form */}
             <div style={cardStyle}>
               <h6 style={{ fontWeight: 700, color: '#0f172a', marginBottom: '20px', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <FaCalendarAlt style={{ color: '#3b82f6' }} /> Working Schedule
@@ -618,7 +813,6 @@ const DoctorDashboard = () => {
               )}
 
               <form onSubmit={handleSaveSchedule}>
-                {/* Working Days */}
                 <div style={{ marginBottom: '20px' }}>
                   <label style={labelStyle}>Working Days</label>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>
@@ -643,7 +837,6 @@ const DoctorDashboard = () => {
                   </div>
                 </div>
 
-                {/* Working Hours */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
                   <div>
                     <label style={labelStyle}>Start Time</label>
@@ -663,7 +856,6 @@ const DoctorDashboard = () => {
                   </div>
                 </div>
 
-                {/* Slot Duration */}
                 <div style={{ marginBottom: '20px' }}>
                   <label style={labelStyle}>Appointment Slot Duration</label>
                   <select
@@ -677,7 +869,6 @@ const DoctorDashboard = () => {
                   </select>
                 </div>
 
-                {/* Break Times */}
                 <div style={{ marginBottom: '20px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                     <label style={labelStyle}>Break Times</label>
@@ -710,7 +901,6 @@ const DoctorDashboard = () => {
               </form>
             </div>
 
-            {/* Unavailable Dates */}
             <div style={cardStyle}>
               <h6 style={{ fontWeight: 700, color: '#0f172a', marginBottom: '20px', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 🚫 Unavailable Dates
@@ -758,7 +948,6 @@ const DoctorDashboard = () => {
                     </div>
                   )}
 
-                  {/* Current Schedule Summary */}
                   <div style={{ marginTop: '24px', background: '#f0f9ff', borderRadius: '12px', padding: '16px', border: '1px solid #bae6fd' }}>
                     <div style={{ fontWeight: 700, color: '#0369a1', fontSize: '13px', marginBottom: '10px' }}>📋 Current Schedule</div>
                     <div style={{ fontSize: '13px', color: '#0f172a', display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -773,7 +962,6 @@ const DoctorDashboard = () => {
                 </>
               )}
             </div>
-
           </div>
         )}
 
@@ -871,6 +1059,50 @@ const DoctorDashboard = () => {
               </div>
               <button type="submit" style={{ background: 'linear-gradient(135deg, #06b6d4, #0891b2)', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '10px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', width: '100%', boxShadow: '0 4px 12px rgba(6,182,212,0.3)' }}>
                 Upload Lab Report
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ E5: NEW Order Test Modal */}
+      {showOrderTestForm && selectedOrderAppointment && (
+        <div style={overlayStyle}>
+          <div style={modalStyle}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <h5 style={{ fontWeight: 700, color: '#0f172a', margin: 0 }}>
+                🧪 Order Lab Test for {selectedOrderAppointment.patientId?.name}
+              </h5>
+              <button onClick={() => setShowOrderTestForm(false)} style={{ background: '#f1f5f9', border: 'none', borderRadius: '8px', width: '32px', height: '32px', cursor: 'pointer', fontSize: '16px', color: '#64748b' }}>✕</button>
+            </div>
+            <form onSubmit={handleOrderTest}>
+              <label style={labelStyle}>Select Test</label>
+              <select 
+                style={inputStyle} 
+                value={selectedTestId} 
+                onChange={e => setSelectedTestId(e.target.value)} 
+                required
+              >
+                <option value="">Choose a test...</option>
+                {labTestCatalog.map(test => (
+                  <option key={test._id} value={test._id}>
+                    {test.name} — {test.category} (Rs. {test.price})
+                  </option>
+                ))}
+              </select>
+              <button type="submit" style={{ 
+                marginTop: '20px', 
+                background: 'linear-gradient(135deg, #06b6d4, #0891b2)', 
+                color: 'white', 
+                border: 'none', 
+                padding: '12px 24px', 
+                borderRadius: '10px', 
+                fontSize: '14px', 
+                fontWeight: 600, 
+                cursor: 'pointer', 
+                width: '100%' 
+              }}>
+                Order Test
               </button>
             </form>
           </div>

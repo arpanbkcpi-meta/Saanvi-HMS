@@ -23,9 +23,21 @@ const Login = () => {
     try {
       const { data } = await axios.post('/auth/login', formData);
       login(data);
-      if (data.role === 'doctor') navigate('/doctor-dashboard');
-      else if (data.role === 'patient') navigate('/patient-dashboard');
-      else navigate('/dashboard');
+      
+      // ✅ FIXED: Proper role-based redirect with labtech support
+      if (data.role === 'admin') {
+        navigate('/dashboard');
+      } else if (data.role === 'doctor') {
+        navigate('/doctor-dashboard');
+      } else if (data.role === 'patient') {
+        navigate('/patient-dashboard');
+      } else if (data.role === 'labtech') {
+        navigate('/labtech-dashboard');
+      } else {
+        // Fallback for any other role
+        console.warn('Unknown role:', data.role);
+        navigate('/dashboard');
+      }
     } catch (err) {
       const message = err.response?.data?.message || 'Login failed';
       setError(message);
@@ -191,7 +203,7 @@ const Login = () => {
     },
     demoGrid: {
       display: 'grid',
-      gridTemplateColumns: '1fr 1fr 1fr',
+      gridTemplateColumns: '1fr 1fr',
       gap: '8px',
     },
     demoItem: {
@@ -313,6 +325,17 @@ const Login = () => {
       textDecoration: 'none',
       fontSize: '15px',
     },
+    forgotPassword: {
+      textAlign: 'right',
+      marginTop: '6px',
+      marginBottom: '16px',
+    },
+    forgotLink: {
+      fontSize: '13px',
+      color: '#3b82f6',
+      fontWeight: 600,
+      textDecoration: 'none',
+    },
   };
 
   const features = [
@@ -322,10 +345,12 @@ const Login = () => {
     { icon: '❤️', text: 'Medical records' },
   ];
 
+  // ✅ ADDED Lab Tech to demo accounts
   const demoAccounts = [
     { role: 'Admin', email: 'admin@hospital.com' },
     { role: 'Doctor', email: 'john@doctor.com' },
     { role: 'Patient', email: 'ram@patient.com' },
+    { role: 'Lab Tech', email: 'sarah@hospital.com' },  // ✅ ADD THIS
   ];
 
   const fillDemoCredentials = (email) => {
@@ -397,7 +422,7 @@ const Login = () => {
           .brand-sub { font-size: 14px !important; margin-bottom: 20px !important; }
           .feature-grid { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
           .feature-item { font-size: 13px !important; }
-          .demo-grid { grid-template-columns: 1fr !important; }
+          .demo-grid { grid-template-columns: 1fr 1fr !important; }
           .form-title { font-size: 22px !important; }
           .form-subtitle { font-size: 14px !important; }
           .input { height: 46px !important; font-size: 14px !important; padding: 10px 14px 10px 40px !important; }
@@ -515,6 +540,11 @@ const Login = () => {
                   >
                     {showPassword ? '👁️' : '🙈'}
                   </button>
+                </div>
+                <div style={styles.forgotPassword}>
+                  <Link to="/forgot-password" style={styles.forgotLink}>
+                    Forgot Password?
+                  </Link>
                 </div>
               </div>
 
